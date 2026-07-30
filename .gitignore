@@ -1,0 +1,34 @@
+# ============================================
+# ARQUIVOS QUE NÃO DEVEM SER VERSIONADOS
+# ============================================
+
+# Ambiente virtual
+venv/
+env/
+.venv/
+
+# Banco de dados SQLite
+*.db
+*.sqlite
+
+# Arquivos de configuração com senhas
+.env
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Configurações do VS Code (exceto settings.json)
+.vscode/
+
+# Arquivos temporários
+tempCodeRunnerFile.py
+*.tmp
+*.log
+
+# IDE
+.idea/
+*.swp
+*.swo

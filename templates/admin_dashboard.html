@@ -1,0 +1,154 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<!-- ============================================ -->
+<!-- HEADER DO DASHBOARD
+<!-- ============================================ -->
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-speedometer2 text-gold me-2"></i>Dashboard</h2>
+        <p>Visão geral da barbearia</p>
+    </div>
+    <div class="text-end">
+        <span style="color:#999999; font-size:14px;">
+            <i class="bi bi-calendar3 me-1"></i>
+            Período atual
+        </span>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- CARDS DE INDICADORES
+<!-- ============================================ -->
+<div class="row g-4 mb-4">
+    <!-- Card: Agendamentos Hoje -->
+    <div class="col-xl-4 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(212,175,55,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-calendar-check" style="color:#d4af37;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Agendamentos Hoje</div>
+                <div class="card-value gold">{{ agendamentos_hoje }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card: Agendamentos do Mês -->
+    <div class="col-xl-4 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(13,202,240,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-calendar-month" style="color:#0dcaf0;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Agendamentos do Mês</div>
+                <div class="card-value" style="color:#0dcaf0;">{{ agendamentos_mes }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card: Serviços Cadastrados -->
+    <div class="col-xl-4 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(40,167,69,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-scissors" style="color:#28a745;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Serviços Cadastrados</div>
+                <div class="card-value" style="color:#28a745;">{{ total_servicos }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card: Clientes Atendidos -->
+    <div class="col-xl-4 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(111,66,193,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-people" style="color:#6f42c1;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Clientes Atendidos</div>
+                <div class="card-value" style="color:#6f42c1;">{{ clientes_atendidos }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card: Faturamento Hoje -->
+    <div class="col-xl-4 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(255,193,7,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-cash-stack" style="color:#ffc107;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Faturamento Hoje</div>
+                <div class="card-value" style="color:#ffc107;">R$ {{ faturamento_hoje }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card: Faturamento do Mês -->
+    <div class="col-xl-4 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(220,53,69,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-graph-up-arrow" style="color:#dc3545;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Faturamento do Mês</div>
+                <div class="card-value" style="color:#dc3545;">R$ {{ faturamento_mes }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TABELA DOS ÚLTIMOS AGENDAMENTOS
+<!-- ============================================ -->
+<div class="admin-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 style="color:#ffffff;font-weight:700;font-size:18px;margin:0;">
+            <i class="bi bi-clock-history text-gold me-2"></i>Últimos Agendamentos
+        </h3>
+        <a href="/admin/agendamentos" class="btn-outline-gold" style="padding:6px 16px;font-size:12px;">
+            Ver Todos <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    {% if ultimos_agendamentos %}
+    <div class="table-responsive-custom">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Data</th>
+                    <th>Horário</th>
+                    <th>Serviço</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ag in ultimos_agendamentos %}
+                <tr>
+                    <td><strong>{{ ag.nome }}</strong></td>
+                    <td>{{ ag.data }}</td>
+                    <td><span class="text-gold">{{ ag.horario }}</span></td>
+                    <td>{{ ag.servico }}</td>
+                    <td>
+                        <span style="color:#ffc107;font-size:13px;">
+                            <i class="bi bi-clock me-1"></i>Agendado
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="admin-empty">
+        <i class="bi bi-calendar-x"></i>
+        <p>Nenhum agendamento realizado ainda.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

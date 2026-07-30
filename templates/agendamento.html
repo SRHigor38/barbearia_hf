@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamento — HF Barbearia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-hf">
+    <div class="container">
+        <a class="navbar-brand" href="/">💈 <span>HF</span> Barbearia</a>
+        <a href="/" class="btn-outline-gold" style="padding:8px 20px; font-size:13px;">
+            <i class="bi bi-arrow-left me-1"></i>Voltar
+        </a>
+    </div>
+</nav>
+
+<!-- Flash Messages -->
+{% with mensagens = get_flashed_messages(with_categories=True) %}
+    {% if mensagens %}
+        <div class="container mt-3">
+            {% for categoria, mensagem in mensagens %}
+                <div class="flash-message {{ categoria }}">{{ mensagem }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<!-- Formulário -->
+<div class="form-container">
+    <div class="form-card">
+        <h1><i class="bi bi-calendar-check text-gold me-2"></i>Agendamento</h1>
+        <p class="form-subtitle">Preencha os dados para confirmar seu horário</p>
+
+        <form action="/agendamento" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label>Serviço</label>
+                    <input type="text" class="form-control" name="servico" value="{{ servico }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label>Preço</label>
+                    <input type="text" class="form-control" value="R$ {{ dados.preco }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label>Duração</label>
+                    <input type="text" class="form-control" value="{{ dados.tempo }} minutos" readonly>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label>Nome</label>
+                    <input type="text" class="form-control" name="nome" placeholder="Seu nome completo" required>
+                </div>
+                <div class="col-md-6">
+                    <label>Telefone</label>
+                    <input type="tel" class="form-control" name="telefone" placeholder="(11) 99999-8888" required>
+                </div>
+                <div class="col-md-6">
+                    <label>Data</label>
+                    <input type="date" class="form-control" name="data" required>
+                </div>
+                <div class="col-md-6">
+                    <label>Horário</label>
+                    <select class="form-select" name="horario">
+                        <option>08:00</option>
+                        <option>09:00</option>
+                        <option>10:00</option>
+                        <option>11:00</option>
+                        <option>13:00</option>
+                        <option>14:00</option>
+                        <option>15:00</option>
+                        <option>16:00</option>
+                        <option>17:00</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn-gold w-100">
+                    <i class="bi bi-check-circle me-2"></i>Confirmar Agendamento
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

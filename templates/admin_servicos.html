@@ -1,0 +1,119 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-scissors text-gold me-2"></i>Serviços</h2>
+        <p>Gerencie os serviços oferecidos pela barbearia</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Formulário -->
+    <div class="col-lg-5">
+        <div class="admin-form-card">
+            <h3>
+                {% if servico_editar %}
+                    <i class="bi bi-pencil-square text-gold me-2"></i>Editar Serviço
+                {% else %}
+                    <i class="bi bi-plus-circle text-gold me-2"></i>Novo Serviço
+                {% endif %}
+            </h3>
+
+            <form method="POST" action="/admin/servicos">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {% if servico_editar %}
+                    <input type="hidden" name="servico_id" value="{{ servico_editar.id }}">
+                {% endif %}
+
+                <div class="mb-3">
+                    <label>Nome do Serviço</label>
+                    <input type="text" class="form-control" name="nome"
+                           value="{{ servico_editar.nome if servico_editar else '' }}"
+                           placeholder="Ex: Corte Degradê" required>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label>Preço (R$)</label>
+                        <input type="number" class="form-control" name="preco"
+                               value="{{ servico_editar.preco if servico_editar else '' }}"
+                               placeholder="Ex: 40" min="0" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label>Tempo (minutos)</label>
+                        <input type="number" class="form-control" name="tempo"
+                               value="{{ servico_editar.tempo if servico_editar else '' }}"
+                               placeholder="Ex: 40" min="1" required>
+                    </div>
+                </div>
+
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" class="btn-success-custom">
+                        <i class="bi bi-check-lg me-1"></i>
+                        {% if servico_editar %}Salvar Alterações{% else %}Adicionar Serviço{% endif %}
+                    </button>
+                    {% if servico_editar %}
+                        <a href="/admin/servicos">
+                            <button type="button" class="btn-outline-gold" style="padding:8px 20px;font-size:13px;">
+                                Cancelar
+                            </button>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Listagem -->
+    <div class="col-lg-7">
+        <div class="admin-card">
+            {% if servicos %}
+            <div class="table-responsive-custom">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nome</th>
+                            <th>Preço</th>
+                            <th>Tempo</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for servico in servicos %}
+                        <tr>
+                            <td>#{{ servico.id }}</td>
+                            <td><strong>{{ servico.nome }}</strong></td>
+                            <td class="text-gold">R$ {{ servico.preco }}</td>
+                            <td>{{ servico.tempo }} min</td>
+                            <td class="acoes">
+                                <a href="/admin/servicos/editar/{{ servico.id }}">
+                                    <button class="btn-edit">
+                                        <i class="bi bi-pencil me-1"></i>Editar
+                                    </button>
+                                </a>
+                                <a href="/admin/servicos/excluir/{{ servico.id }}">
+                                    <button class="btn-danger-custom">
+                                        <i class="bi bi-trash me-1"></i>Excluir
+                                    </button>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="admin-empty">
+                <i class="bi bi-box"></i>
+                <p>Nenhum serviço cadastrado.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
