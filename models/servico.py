@@ -4,7 +4,6 @@
 # Representa um serviço oferecido pela barbearia.
 
 from models import db
-from datetime import datetime
 
 
 class Servico(db.Model):

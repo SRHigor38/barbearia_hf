@@ -132,14 +132,12 @@ def inicio():
     ).count()
 
     # Clientes atendidos (agendamentos únicos por nome)
-    from sqlalchemy import func
     clientes_atendidos = Agendamento.query.with_entities(
         Agendamento.nome
     ).distinct().count()
 
     # Faturamento (simulado com base nos serviços)
     # Busca todos os agendamentos de hoje e calcula o valor
-    from models.servico import Servico
     agendamentos_hoje_lista = Agendamento.query.filter_by(data=hoje_str).all()
     faturamento_hoje = 0
     for ag in agendamentos_hoje_lista:

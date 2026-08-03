@@ -134,7 +134,6 @@ def criar_agendamento(nome, telefone, data, horario, servico):
     Também cria automaticamente o registro financeiro associado.
     Retorna o objeto Agendamento criado.
     """
-    from models.servico import Servico
 
     # Cria o agendamento
     novo_agendamento = Agendamento(

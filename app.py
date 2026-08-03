@@ -4,6 +4,7 @@
 # Este arquivo cria e configura a aplicação Flask.
 # Ele importa os modelos, registra os blueprints e inicia o servidor.
 
+import os
 from flask import Flask, redirect, url_for, flash
 from flask_wtf.csrf import CSRFProtect
 from flask_bcrypt import Bcrypt
@@ -93,4 +94,7 @@ def create_app():
 # Se este arquivo for executado diretamente, cria a app e inicia o servidor.
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True)
+    # debug=True apenas em desenvolvimento
+    # Para produção, defina FLASK_ENV=production no .env
+    debug_mode = os.getenv("FLASK_DEBUG", "true").lower() == "true"
+    app.run(debug=debug_mode)
