@@ -164,6 +164,49 @@ def criar_agendamento(nome, telefone, data, horario, servico):
 
 
 # ============================================
+# FUNÇÕES DE RELATÓRIOS
+# ============================================
+
+
+def listar_agendamentos_por_periodo(data_inicio, data_fim):
+    """
+    Busca agendamentos entre duas datas (inclusive).
+    Retorna uma lista de objetos Agendamento ordenados por data.
+    """
+    return Agendamento.query.filter(
+        Agendamento.data >= data_inicio,
+        Agendamento.data <= data_fim
+    ).order_by(Agendamento.data.asc(), Agendamento.horario.asc()).all()
+
+
+def calcular_totais_periodo(agendamentos):
+    """
+    Calcula totais de um período a partir de uma lista de agendamentos.
+    Retorna um dicionário com:
+        - quantidade: número de agendamentos
+        - total_faturado: soma dos valores (via financeiro)
+        - ticket_medio: total_faturado / quantidade
+    """
+    from models.financeiro import Financeiro
+
+    quantidade = len(agendamentos)
+    total_faturado = 0
+
+    for ag in agendamentos:
+        financeiro = Financeiro.query.filter_by(agendamento_id=ag.id).first()
+        if financeiro and financeiro.status == "pago":
+            total_faturado += financeiro.valor
+
+    ticket_medio = round(total_faturado / quantidade, 2) if quantidade > 0 else 0
+
+    return {
+        "quantidade": quantidade,
+        "total_faturado": total_faturado,
+        "ticket_medio": ticket_medio,
+    }
+
+
+# ============================================
 # FUNÇÕES DE INICIALIZAÇÃO
 # ============================================
 

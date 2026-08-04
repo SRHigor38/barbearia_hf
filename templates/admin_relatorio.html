@@ -1,0 +1,93 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-graph-up text-gold me-2"></i>Relatório por Período</h2>
+        <p>Consulte agendamentos e faturamento entre datas</p>
+    </div>
+</div>
+
+<!-- Formulário de filtro -->
+<div class="admin-card mb-4">
+    <form method="GET" action="/admin/relatorios" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label>Data Inicial</label>
+            <input type="date" class="form-control" name="data_inicio" value="{{ data_inicio }}" required>
+        </div>
+        <div class="col-md-4">
+            <label>Data Final</label>
+            <input type="date" class="form-control" name="data_fim" value="{{ data_fim }}" required>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn-gold w-100">
+                <i class="bi bi-search me-2"></i>Pesquisar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Cards de totais -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="admin-card text-center">
+            <div class="card-title"><i class="bi bi-calendar-check me-1"></i>Quantidade</div>
+            <div class="card-value gold">{{ totais.quantidade }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="admin-card text-center">
+            <div class="card-title"><i class="bi bi-cash-stack me-1"></i>Total Faturado</div>
+            <div class="card-value" style="color:#28a745;">R$ {{ totais.total_faturado }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="admin-card text-center">
+            <div class="card-title"><i class="bi bi-ticket-perforated me-1"></i>Ticket Médio</div>
+            <div class="card-value" style="color:#0dcaf0;">R$ {{ totais.ticket_medio }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de agendamentos -->
+<div class="admin-card">
+    <h3 style="color:#ffffff;font-weight:700;font-size:18px;margin-bottom:20px;">
+        <i class="bi bi-list-ul text-gold me-2"></i>Agendamentos do Período
+    </h3>
+
+    {% if agendamentos %}
+    <div class="table-responsive-custom">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Horário</th>
+                    <th>Cliente</th>
+                    <th>Serviço</th>
+                    <th>Telefone</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ag in agendamentos %}
+                <tr>
+                    <td>{{ ag.data }}</td>
+                    <td><span class="text-gold">{{ ag.horario }}</span></td>
+                    <td><strong>{{ ag.nome }}</strong></td>
+                    <td>{{ ag.servico }}</td>
+                    <td>{{ ag.telefone }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="admin-empty">
+        <i class="bi bi-inbox"></i>
+        <p>Nenhum agendamento encontrado para o período selecionado.</p>
+        <p style="font-size:13px;color:#666;">Selecione as datas acima e clique em "Pesquisar".</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

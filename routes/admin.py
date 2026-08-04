@@ -320,6 +320,51 @@ def editar_servico(servico_id):
 
 
 # ============================================
+# RELATÓRIOS
+# ============================================
+
+
+@admin_bp.route("/relatorios")
+def listar_relatorios():
+    """
+    Gera relatório de agendamentos por período.
+    Recebe data inicial e final via query string (?data_inicio=&data_fim=).
+    """
+    check = login_necessario()
+    if check:
+        return check
+
+    from services.barbearia_service import (
+        listar_agendamentos_por_periodo,
+        calcular_totais_periodo,
+    )
+    from datetime import date
+
+    # Pega as datas da URL (ou usa valores padrão: mês atual)
+    data_inicio = request.args.get("data_inicio", "")
+    data_fim = request.args.get("data_fim", "")
+
+    agendamentos = []
+    totais = {"quantidade": 0, "total_faturado": 0, "ticket_medio": 0}
+
+    if data_inicio and data_fim:
+        # Valida se data_inicio não é maior que data_fim
+        if data_inicio > data_fim:
+            flash("Data inicial não pode ser maior que a data final.", "error")
+        else:
+            agendamentos = listar_agendamentos_por_periodo(data_inicio, data_fim)
+            totais = calcular_totais_periodo(agendamentos)
+
+    return render_template(
+        "admin_relatorio.html",
+        agendamentos=agendamentos,
+        totais=totais,
+        data_inicio=data_inicio,
+        data_fim=data_fim
+    )
+
+
+# ============================================
 # FINANCEIRO
 # ============================================
 
