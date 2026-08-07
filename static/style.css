@@ -470,6 +470,437 @@ body {
     font-size: 13px;
 }
 
+/* ================= FLUXO DE AGENDAMENTO EM ETAPAS ================= */
+
+/* Indicador de etapas */
+.steps-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 60px;
+}
+
+.step-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #181818;
+    border: 2px solid #9E9E9E;
+    color: #9E9E9E;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.step-label {
+    font-size: 11px;
+    color: #9E9E9E;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.step.active .step-circle {
+    background: #D4AF37;
+    border-color: #D4AF37;
+    color: #0D0D0D;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+}
+
+.step.active .step-label {
+    color: #D4AF37;
+}
+
+.step.done .step-circle {
+    background: rgba(212, 175, 55, 0.2);
+    border-color: #D4AF37;
+    color: #D4AF37;
+}
+
+.step-line {
+    width: 30px;
+    height: 2px;
+    background: #333;
+    border-radius: 2px;
+}
+
+/* Título das etapas */
+.step-title {
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+/* Resumo do serviço (etapa 1) */
+.servico-resumo {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: #181818;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.servico-imagem {
+    width: 90px;
+    height: 90px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #0D0D0D;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.servico-imagem img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.servico-imagem-placeholder {
+    font-size: 40px;
+}
+
+.servico-info h3 {
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 5px;
+}
+
+.servico-descricao {
+    color: #9E9E9E;
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+.servico-meta {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.servico-meta .preco {
+    color: #D4AF37;
+    font-weight: 800;
+    font-size: 20px;
+}
+
+.servico-meta .duracao {
+    color: #9E9E9E;
+    font-size: 13px;
+}
+
+/* Cards de profissionais (etapa 2) */
+.profissional-card {
+    background: #181818;
+    border: 2px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 15px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.profissional-card:hover {
+    border-color: rgba(212, 175, 55, 0.3);
+    transform: translateY(-2px);
+}
+
+.profissional-card.selected {
+    border-color: #D4AF37;
+    background: rgba(212, 175, 55, 0.05);
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
+}
+
+.profissional-foto {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #0D0D0D;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profissional-foto img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profissional-foto-placeholder {
+    font-size: 28px;
+}
+
+.profissional-info h4 {
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 3px;
+}
+
+.profissional-info p {
+    color: #9E9E9E;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.badge-tempo {
+    background: rgba(212, 175, 55, 0.1);
+    color: #D4AF37;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+/* Calendário (etapa 3) */
+.calendario {
+    background: #181818;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.calendario-header {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.calendario-mes {
+    color: #D4AF37;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.calendario-dias-semana {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.dia-semana {
+    text-align: center;
+    color: #9E9E9E;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.calendario-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.calendario-dia {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0D0D0D;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.calendario-dia:hover {
+    border-color: #D4AF37;
+    background: rgba(212, 175, 55, 0.1);
+}
+
+.calendario-dia.hoje {
+    border-color: #D4AF37;
+    color: #D4AF37;
+    font-weight: 700;
+}
+
+.calendario-dia.selecionado {
+    background: #D4AF37;
+    color: #0D0D0D;
+    font-weight: 700;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+.calendario-dia.indisponivel {
+    color: #555;
+    cursor: not-allowed;
+}
+
+.calendario-dia.vazio {
+    background: transparent;
+    border: none;
+    cursor: default;
+}
+
+/* Horários (etapa 4) */
+.horarios-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.horario-card {
+    padding: 14px;
+    text-align: center;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.horario-card.disponivel {
+    background: #2a2a2a;
+    color: #FFFFFF;
+}
+
+.horario-card.disponivel:hover {
+    border-color: #D4AF37;
+    transform: translateY(-2px);
+}
+
+.horario-card.selecionado {
+    background: #D4AF37;
+    color: #0D0D0D;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+.horario-card.indisponivel {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.horario-card.intervalo {
+    background: #333;
+    color: #777;
+    cursor: not-allowed;
+}
+
+/* Legenda de horários */
+.legenda-horarios {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.legenda-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #9E9E9E;
+    font-size: 12px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-disponivel { background: #2a2a2a; border: 1px solid #555; }
+.dot-indisponivel { background: #dc3545; }
+.dot-intervalo { background: #333; }
+
+/* Resumo do agendamento (etapa 5) */
+.resumo-agendamento {
+    background: #181818;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.resumo-agendamento .info-linha {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.resumo-agendamento .info-linha:last-child {
+    border-bottom: none;
+}
+
+.resumo-agendamento .info-label {
+    color: #9E9E9E;
+    font-size: 13px;
+}
+
+.resumo-agendamento .info-value {
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* Responsivo do fluxo de agendamento */
+@media (max-width: 576px) {
+    .horarios-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .servico-resumo {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .servico-meta {
+        justify-content: center;
+    }
+
+    .steps-indicator {
+        gap: 4px;
+    }
+
+    .step {
+        min-width: 45px;
+    }
+
+    .step-circle {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+
+    .step-label {
+        font-size: 9px;
+    }
+
+    .step-line {
+        width: 15px;
+    }
+}
+
 /* ================= FORMULÁRIO DE AGENDAMENTO ================= */
 .form-container {
     max-width: 700px;

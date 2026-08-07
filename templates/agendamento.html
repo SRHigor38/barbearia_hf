@@ -31,68 +31,356 @@
     {% endif %}
 {% endwith %}
 
-<!-- Formulário -->
+<!-- ============================================ -->
+<!-- FLUXO DE AGENDAMENTO EM ETAPAS
+<!-- ============================================ -->
 <div class="form-container">
     <div class="form-card">
         <h1><i class="bi bi-calendar-check text-gold me-2"></i>Agendamento</h1>
-        <p class="form-subtitle">Preencha os dados para confirmar seu horário</p>
+        <p class="form-subtitle">Complete as etapas para confirmar seu horário</p>
 
-        <form action="/agendamento" method="POST">
+        <!-- Indicador de etapas -->
+        <div class="steps-indicator mb-4">
+            <div class="step active" data-step="1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Serviço</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Profissional</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Data</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="4">
+                <div class="step-circle">4</div>
+                <div class="step-label">Horário</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="5">
+                <div class="step-circle">5</div>
+                <div class="step-label">Confirmar</div>
+            </div>
+        </div>
+
+        <form action="/agendamento" method="POST" id="form-agendamento">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="servico" value="{{ servico }}">
+            <input type="hidden" name="profissional_id" id="profissional_id" value="">
+            <input type="hidden" name="data" id="data_selecionada" value="">
+            <input type="hidden" name="horario" id="horario_selecionado" value="">
 
-            <div class="row g-3 mb-4">
-                <div class="col-md-4">
-                    <label>Serviço</label>
-                    <input type="text" class="form-control" name="servico" value="{{ servico }}" readonly>
+            <!-- ============================================ -->
+            <!-- ETAPA 1: SERVIÇO (resumo)
+            <!-- ============================================ -->
+            <div class="step-content" id="step-1">
+                <div class="servico-resumo">
+                    <div class="servico-imagem">
+                        {% if dados.imagem %}
+                            <img src="{{ url_for('static', filename='imagens/' + dados.imagem) }}" alt="{{ servico }}" loading="lazy">
+                        {% else %}
+                            <div class="servico-imagem-placeholder">💈</div>
+                        {% endif %}
+                    </div>
+                    <div class="servico-info">
+                        <h3>{{ servico }}</h3>
+                        {% if dados.descricao %}<p class="servico-descricao">{{ dados.descricao }}</p>{% endif %}
+                        <div class="servico-meta">
+                            <span class="preco">R$ {{ dados.preco }}</span>
+                            <span class="duracao"><i class="bi bi-clock me-1"></i>{{ dados.tempo }} min</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <label>Preço</label>
-                    <input type="text" class="form-control" value="R$ {{ dados.preco }}" readonly>
-                </div>
-                <div class="col-md-4">
-                    <label>Duração</label>
-                    <input type="text" class="form-control" value="{{ dados.tempo }} minutos" readonly>
-                </div>
-            </div>
-
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label>Nome</label>
-                    <input type="text" class="form-control" name="nome" placeholder="Seu nome completo" required>
-                </div>
-                <div class="col-md-6">
-                    <label>Telefone</label>
-                    <input type="tel" class="form-control" name="telefone" placeholder="(11) 99999-8888" required>
-                </div>
-                <div class="col-md-6">
-                    <label>Data</label>
-                    <input type="date" class="form-control" name="data" required>
-                </div>
-                <div class="col-md-6">
-                    <label>Horário</label>
-                    <select class="form-select" name="horario">
-                        <option>08:00</option>
-                        <option>09:00</option>
-                        <option>10:00</option>
-                        <option>11:00</option>
-                        <option>13:00</option>
-                        <option>14:00</option>
-                        <option>15:00</option>
-                        <option>16:00</option>
-                        <option>17:00</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="mt-4">
-                <button type="submit" class="btn-gold w-100">
-                    <i class="bi bi-check-circle me-2"></i>Confirmar Agendamento
+                <button type="button" class="btn-gold w-100 mt-3" onclick="nextStep(2)">
+                    Continuar <i class="bi bi-arrow-right ms-2"></i>
                 </button>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- ETAPA 2: PROFISSIONAL
+            <!-- ============================================ -->
+            <div class="step-content d-none" id="step-2">
+                <h3 class="step-title">Escolha o profissional</h3>
+                <div class="row g-3">
+                    {% for prof in profissionais %}
+                    <div class="col-md-6">
+                        <div class="profissional-card" onclick="selectProfissional({{ prof.id }}, this)">
+                            <div class="profissional-foto">
+                                {% if prof.foto %}
+                                    <img src="{{ url_for('static', filename='imagens/' + prof.foto) }}" alt="{{ prof.nome }}" loading="lazy">
+                                {% else %}
+                                    <div class="profissional-foto-placeholder">👤</div>
+                                {% endif %}
+                            </div>
+                            <div class="profissional-info">
+                                <h4>{{ prof.nome }}</h4>
+                                <p>{{ prof.especialidade or 'Profissional' }}</p>
+                                <span class="badge-tempo"><i class="bi bi-clock me-1"></i>{{ prof.tempo_medio or 40 }} min</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-12">
+                        <div class="admin-empty">
+                            <i class="bi bi-person-x"></i>
+                            <p>Nenhum profissional disponível no momento.</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn-outline-gold" onclick="prevStep(1)"><i class="bi bi-arrow-left me-2"></i>Voltar</button>
+                    <button type="button" class="btn-gold flex-grow-1" onclick="nextStep(3)">
+                        Continuar <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- ETAPA 3: DATA (calendário)
+            <!-- ============================================ -->
+            <div class="step-content d-none" id="step-3">
+                <h3 class="step-title">Escolha a data</h3>
+                <div class="calendario" id="calendario">
+                    <!-- Calendário gerado via JavaScript -->
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn-outline-gold" onclick="prevStep(2)"><i class="bi bi-arrow-left me-2"></i>Voltar</button>
+                    <button type="button" class="btn-gold flex-grow-1" onclick="nextStep(4)">
+                        Continuar <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- ETAPA 4: HORÁRIO
+            <!-- ============================================ -->
+            <div class="step-content d-none" id="step-4">
+                <h3 class="step-title">Escolha o horário</h3>
+                <div class="horarios-grid" id="horarios-grid">
+                    <!-- Horários carregados via JavaScript -->
+                </div>
+                <div class="legenda-horarios mt-3">
+                    <span class="legenda-item"><span class="dot dot-disponivel"></span> Disponível</span>
+                    <span class="legenda-item"><span class="dot dot-indisponivel"></span> Indisponível</span>
+                    <span class="legenda-item"><span class="dot dot-intervalo"></span> Intervalo</span>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn-outline-gold" onclick="prevStep(3)"><i class="bi bi-arrow-left me-2"></i>Voltar</button>
+                    <button type="button" class="btn-gold flex-grow-1" onclick="nextStep(5)">
+                        Continuar <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- ETAPA 5: CONFIRMAÇÃO (dados do cliente)
+            <!-- ============================================ -->
+            <div class="step-content d-none" id="step-5">
+                <h3 class="step-title">Seus dados</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label>Nome</label>
+                        <input type="text" class="form-control" name="nome" placeholder="Seu nome completo" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label>Telefone</label>
+                        <input type="tel" class="form-control" name="telefone" placeholder="(11) 99999-8888" required>
+                    </div>
+                    <div class="col-12">
+                        <label>Observações (opcional)</label>
+                        <textarea class="form-control" name="observacoes" rows="2" placeholder="Alguma observação?"></textarea>
+                    </div>
+                </div>
+                <div class="resumo-agendamento mt-4" id="resumo-agendamento">
+                    <!-- Resumo preenchido via JavaScript -->
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn-outline-gold" onclick="prevStep(4)"><i class="bi bi-arrow-left me-2"></i>Voltar</button>
+                    <button type="submit" class="btn-gold flex-grow-1">
+                        <i class="bi bi-check-circle me-2"></i>Confirmar Agendamento
+                    </button>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ============================================
+// FLUXO DE AGENDAMENTO EM ETAPAS
+// ============================================
+
+let etapaAtual = 1;
+let dataSelecionada = '';
+let horarioSelecionado = '';
+
+// Avança para a próxima etapa
+function nextStep(etapa) {
+    // Validações por etapa
+    if (etapa === 3 && !dataSelecionada) {
+        alert('Selecione uma data.');
+        return;
+    }
+    if (etapa === 4 && !horarioSelecionado) {
+        alert('Selecione um horário.');
+        return;
+    }
+
+    etapaAtual = etapa;
+    atualizarEtapas();
+}
+
+// Volta para a etapa anterior
+function prevStep(etapa) {
+    etapaAtual = etapa;
+    atualizarEtapas();
+}
+
+// Atualiza a exibição das etapas
+function atualizarEtapas() {
+    // Esconde todos os conteúdos
+    for (let i = 1; i <= 5; i++) {
+        document.getElementById('step-' + i).classList.add('d-none');
+    }
+    // Mostra o conteúdo atual
+    document.getElementById('step-' + etapaAtual).classList.remove('d-none');
+
+    // Atualiza indicador visual
+    document.querySelectorAll('.step').forEach((el, idx) => {
+        const num = idx + 1;
+        el.classList.toggle('active', num <= etapaAtual);
+        el.classList.toggle('done', num < etapaAtual);
+    });
+}
+
+// Seleciona profissional
+function selectProfissional(id, el) {
+    document.getElementById('profissional_id').value = id;
+    document.querySelectorAll('.profissional-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+// ============================================
+// CALENDÁRIO
+// ============================================
+
+function gerarCalendario() {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = hoje.getMonth();
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+    const primeiroDia = new Date(ano, mes, 1).getDay();
+
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+    let html = '<div class="calendario-header">';
+    html += '<span class="calendario-mes">' + meses[mes] + ' ' + ano + '</span>';
+    html += '</div>';
+    html += '<div class="calendario-dias-semana">';
+    diasSemana.forEach(d => { html += '<div class="dia-semana">' + d + '</div>'; });
+    html += '</div>';
+    html += '<div class="calendario-grid">';
+
+    // Dias vazios antes do primeiro dia
+    for (let i = 0; i < primeiroDia; i++) {
+        html += '<div class="calendario-dia vazio"></div>';
+    }
+
+    // Dias do mês
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+        const dataStr = ano + '-' + String(mes + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+        const isHoje = dia === hoje.getDate();
+        const isSelecionado = dataStr === dataSelecionada;
+        const isPassado = dataStr < hoje.toISOString().split('T')[0];
+
+        let classes = 'calendario-dia';
+        if (isHoje) classes += ' hoje';
+        if (isSelecionado) classes += ' selecionado';
+        if (isPassado) classes += ' indisponivel';
+
+        html += '<div class="' + classes + '" onclick="selecionarData(\'' + dataStr + '\', this)" ' + (isPassado ? 'style="pointer-events:none;opacity:0.3;"' : '') + '>';
+        html += dia;
+        html += '</div>';
+    }
+
+    html += '</div>';
+    document.getElementById('calendario').innerHTML = html;
+}
+
+function selecionarData(data, el) {
+    dataSelecionada = data;
+    document.getElementById('data_selecionada').value = data;
+    document.querySelectorAll('.calendario-dia').forEach(d => d.classList.remove('selecionado'));
+    el.classList.add('selecionado');
+    carregarHorarios(data);
+}
+
+// ============================================
+// HORÁRIOS
+// ============================================
+
+function carregarHorarios(data) {
+    fetch('/api/horarios?data=' + data)
+        .then(res => res.json())
+        .then(dados => {
+            const grid = document.getElementById('horarios-grid');
+            let html = '';
+
+            dados.horarios.forEach(h => {
+                let classes = 'horario-card';
+                let onclick = '';
+
+                if (h.disponivel) {
+                    classes += ' disponivel';
+                    onclick = 'selecionarHorario(\'' + h.horario + '\', this)';
+                } else if (h.bloqueado) {
+                    classes += ' intervalo';
+                } else {
+                    classes += ' indisponivel';
+                }
+
+                html += '<div class="' + classes + '" onclick="' + onclick + '">' + h.horario + '</div>';
+            });
+
+            grid.innerHTML = html;
+        });
+}
+
+function selecionarHorario(horario, el) {
+    horarioSelecionado = horario;
+    document.getElementById('horario_selecionado').value = horario;
+    document.querySelectorAll('.horario-card').forEach(h => h.classList.remove('selecionado'));
+    el.classList.add('selecionado');
+    atualizarResumo();
+}
+
+// ============================================
+// RESUMO
+// ============================================
+
+function atualizarResumo() {
+    const resumo = document.getElementById('resumo-agendamento');
+    const servico = document.querySelector('input[name="servico"]').value;
+    const profissionalId = document.getElementById('profissional_id').value;
+    const profissionalNome = profissionalId ? document.querySelector('.profissional-card.selected h4').textContent : 'Não selecionado';
+
+    resumo.innerHTML = `
+        <div class="info-linha"><span class="info-label">Serviço</span><span class="info-value">${servico}</span></div>
+        <div class="info-linha"><span class="info-label">Profissional</span><span class="info-value">${profissionalNome}</span></div>
+        <div class="info-linha"><span class="info-label">Data</span><span class="info-value">${dataSelecionada}</span></div>
+        <div class="info-linha"><span class="info-label">Horário</span><span class="info-value">${horarioSelecionado}</span></div>
+    `;
+}
+
+// Inicializa o calendário ao carregar
+gerarCalendario();
+</script>
 </body>
 </html>

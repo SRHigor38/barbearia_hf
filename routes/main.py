@@ -2,8 +2,10 @@
 # ROTAS PÚBLICAS
 # ============================================
 # Rotas acessíveis por qualquer usuário (sem login).
+# Fluxo de agendamento em etapas:
+#   1. Serviço → 2. Profissional → 3. Data → 4. Horário → 5. Confirmação
 
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, jsonify
 from routes import main_bp
 from services.barbearia_service import (
     listar_servicos_do_banco,
@@ -15,6 +17,10 @@ from services.barbearia_service import (
     validar_horario,
     verificar_conflito_horario,
     criar_agendamento,
+    listar_profissionais,
+    buscar_profissional_por_id,
+    horario_esta_bloqueado,
+    criar_cliente,
 )
 
 
@@ -36,9 +42,9 @@ def inicio():
 @main_bp.route("/agendamento", methods=["GET", "POST"])
 def agendamento():
     """
-    Rota de agendamento.
-    - GET:  Exibe o formulário de agendamento para um serviço específico.
-    - POST: Processa os dados do formulário, valida e mostra confirmação.
+    Rota de agendamento em etapas.
+    - GET:  Exibe o fluxo de agendamento (serviço → profissional → data → horário).
+    - POST: Processa os dados e mostra confirmação.
     """
 
     if request.method == "GET":
@@ -60,20 +66,30 @@ def agendamento():
             return redirect(url_for("main.inicio"))
 
         # ============================================
-        # PASSO 4: Prepara os dados para o template
+        # PASSO 4: Busca profissionais disponíveis
+        # ============================================
+        profissionais = listar_profissionais()
+
+        # ============================================
+        # PASSO 5: Prepara os dados para o template
         # ============================================
         dados_servico = {
             "preco": servico_encontrado.preco,
             "tempo": servico_encontrado.tempo,
+            "descricao": servico_encontrado.descricao,
+            "categoria": servico_encontrado.categoria,
+            "badge": servico_encontrado.badge,
+            "imagem": servico_encontrado.imagem,
         }
 
         # ============================================
-        # PASSO 5: Renderiza o formulário
+        # PASSO 6: Renderiza o formulário em etapas
         # ============================================
         return render_template(
             "agendamento.html",
             servico=nome_servico,
-            dados=dados_servico
+            dados=dados_servico,
+            profissionais=profissionais
         )
 
     # ============================================
@@ -88,6 +104,8 @@ def agendamento():
     data = request.form["data"]
     horario = request.form["horario"]
     nome_servico = request.form["servico"]
+    profissional_id = request.form.get("profissional_id", "")
+    observacoes = request.form.get("observacoes", "")
 
     # ============================================
     # PASSO 2: Valida se o serviço existe
@@ -141,12 +159,35 @@ def agendamento():
         return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
 
     # ============================================
-    # PASSO 8: Salva o agendamento no banco de dados
+    # PASSO 8: Valida bloqueio manual
     # ============================================
-    criar_agendamento(nome, telefone, data, horario, nome_servico)
+    if horario_esta_bloqueado(data, horario):
+        flash(
+            f"Este horário ({horario}) não está disponível para "
+            f"a data {data}. Escolha outro horário.",
+            "error"
+        )
+        return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
 
     # ============================================
-    # PASSO 9: Tudo validado e salvo — mostra confirmação
+    # PASSO 9: Cria/vincula cliente automaticamente
+    # ============================================
+    cliente = criar_cliente(nome=nome, telefone=telefone)
+
+    # ============================================
+    # PASSO 10: Salva o agendamento no banco de dados
+    # ============================================
+    profissional_id_int = int(profissional_id) if profissional_id.isdigit() else None
+
+    criar_agendamento(
+        nome, telefone, data, horario, nome_servico,
+        profissional_id=profissional_id_int,
+        cliente_id=cliente.id,
+        observacoes=observacoes or None
+    )
+
+    # ============================================
+    # PASSO 11: Tudo validado e salvo — mostra confirmação
     # ============================================
     flash("Agendamento realizado com sucesso!", "success")
     return render_template(
@@ -157,3 +198,29 @@ def agendamento():
         horario=horario,
         servico=nome_servico
     )
+
+
+@main_bp.route("/api/horarios")
+def api_horarios():
+    """
+    API interna: retorna os horários disponíveis para uma data.
+    Usada pelo front-end para atualizar o calendário dinamicamente.
+    """
+    data = request.args.get("data", "")
+    horarios_permitidos = [
+        "08:00", "09:00", "10:00", "11:00",
+        "13:00", "14:00", "15:00", "16:00", "17:00"
+    ]
+
+    horarios = []
+    for horario in horarios_permitidos:
+        ocupado = verificar_conflito_horario(data, horario)
+        bloqueado = horario_esta_bloqueado(data, horario)
+        horarios.append({
+            "horario": horario,
+            "disponivel": not ocupado and not bloqueado,
+            "ocupado": ocupado,
+            "bloqueado": bloqueado,
+        })
+
+    return jsonify({"horarios": horarios})

@@ -10,6 +10,9 @@ from models import db
 from models.servico import Servico
 from models.agendamento import Agendamento
 from models.financeiro import Financeiro
+from models.profissional import Profissional
+from models.cliente import Cliente
+from models.bloqueio import Bloqueio
 
 
 # ============================================
@@ -24,8 +27,7 @@ def listar_servicos_do_banco():
 
     Formato de retorno:
     {
-        "Corte": {"preco": 40, "tempo": 40},
-        "Barba": {"preco": 25, "tempo": 25},
+        "Corte": {"preco": 40, "tempo": 40, "descricao": "...", "categoria": "...", "badge": "...", "imagem": "..."},
         ...
     }
     """
@@ -36,6 +38,10 @@ def listar_servicos_do_banco():
         servicos_dict[servico.nome] = {
             "preco": servico.preco,
             "tempo": servico.tempo,
+            "descricao": servico.descricao,
+            "categoria": servico.categoria,
+            "badge": servico.badge,
+            "imagem": servico.imagem,
         }
 
     return servicos_dict
@@ -128,7 +134,8 @@ def verificar_conflito_horario(data, horario):
     return conflito is not None
 
 
-def criar_agendamento(nome, telefone, data, horario, servico):
+def criar_agendamento(nome, telefone, data, horario, servico,
+                      profissional_id=None, cliente_id=None, observacoes=None):
     """
     Cria e salva um novo agendamento no banco de dados.
     Também cria automaticamente o registro financeiro associado.
@@ -141,7 +148,10 @@ def criar_agendamento(nome, telefone, data, horario, servico):
         telefone=telefone.strip(),
         data=data,
         horario=horario,
-        servico=servico
+        servico=servico,
+        profissional_id=profissional_id,
+        cliente_id=cliente_id,
+        observacoes=observacoes
     )
     db.session.add(novo_agendamento)
     db.session.flush()  # Força o ID a ser gerado sem commit
@@ -204,6 +214,139 @@ def calcular_totais_periodo(agendamentos):
         "total_faturado": total_faturado,
         "ticket_medio": ticket_medio,
     }
+
+
+# ============================================
+# FUNÇÕES RELACIONADAS A PROFISSIONAIS
+# ============================================
+
+
+def listar_profissionais():
+    """
+    Retorna todos os profissionais ativos do banco.
+    """
+    return Profissional.query.filter_by(ativo=True).all()
+
+
+def listar_todos_profissionais():
+    """
+    Retorna todos os profissionais (ativos e inativos).
+    """
+    return Profissional.query.all()
+
+
+def buscar_profissional_por_id(profissional_id):
+    """
+    Busca um profissional pelo ID.
+    Retorna o objeto Profissional ou None.
+    """
+    return Profissional.query.get(profissional_id)
+
+
+def criar_profissional(nome, especialidade, telefone, descricao, foto, tempo_medio):
+    """
+    Cria e salva um novo profissional no banco.
+    """
+    profissional = Profissional(
+        nome=nome,
+        especialidade=especialidade,
+        telefone=telefone,
+        descricao=descricao,
+        foto=foto,
+        tempo_medio=tempo_medio,
+        ativo=True
+    )
+    db.session.add(profissional)
+    db.session.commit()
+    return profissional
+
+
+# ============================================
+# FUNÇÕES RELACIONADAS A CLIENTES
+# ============================================
+
+
+def listar_clientes():
+    """
+    Retorna todos os clientes cadastrados.
+    """
+    return Cliente.query.order_by(Cliente.nome.asc()).all()
+
+
+def buscar_cliente_por_id(cliente_id):
+    """
+    Busca um cliente pelo ID.
+    """
+    return Cliente.query.get(cliente_id)
+
+
+def buscar_cliente_por_telefone(telefone):
+    """
+    Busca um cliente pelo telefone.
+    """
+    return Cliente.query.filter_by(telefone=telefone).first()
+
+
+def criar_cliente(nome, telefone, email=None, aniversario=None, observacoes=None):
+    """
+    Cria e salva um novo cliente no banco.
+    Se já existir cliente com o mesmo telefone, retorna o existente.
+    """
+    cliente_existente = buscar_cliente_por_telefone(telefone)
+    if cliente_existente:
+        return cliente_existente
+
+    cliente = Cliente(
+        nome=nome,
+        telefone=telefone,
+        email=email,
+        aniversario=aniversario,
+        observacoes=observacoes
+    )
+    db.session.add(cliente)
+    db.session.commit()
+    return cliente
+
+
+# ============================================
+# FUNÇÕES RELACIONADAS A BLOQUEIOS
+# ============================================
+
+
+def listar_bloqueios_por_data(data):
+    """
+    Retorna todos os bloqueios de uma data específica.
+    """
+    return Bloqueio.query.filter_by(data=data).all()
+
+
+def criar_bloqueio(data, horario, motivo=None):
+    """
+    Cria um bloqueio manual de horário.
+    """
+    bloqueio = Bloqueio(data=data, horario=horario, motivo=motivo)
+    db.session.add(bloqueio)
+    db.session.commit()
+    return bloqueio
+
+
+def remover_bloqueio(bloqueio_id):
+    """
+    Remove um bloqueio pelo ID.
+    """
+    bloqueio = Bloqueio.query.get(bloqueio_id)
+    if bloqueio:
+        db.session.delete(bloqueio)
+        db.session.commit()
+        return True
+    return False
+
+
+def horario_esta_bloqueado(data, horario):
+    """
+    Verifica se um horário está bloqueado manualmente.
+    """
+    return Bloqueio.query.filter_by(data=data, horario=horario).first() is not None
 
 
 # ============================================

@@ -12,6 +12,9 @@ from config import Config
 from models import db
 from models.servico import Servico
 from models.admin import Admin
+from models.profissional import Profissional
+from models.cliente import Cliente
+from models.bloqueio import Bloqueio
 from routes import main_bp, admin_bp
 from services.barbearia_service import criar_banco_e_popular
 
