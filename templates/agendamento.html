@@ -327,7 +327,9 @@ function selecionarData(data, el) {
 // ============================================
 
 function carregarHorarios(data) {
-    fetch('/api/horarios?data=' + data)
+    const profissionalId = document.getElementById('profissional_id').value;
+    const servico = document.querySelector('input[name="servico"]').value;
+    fetch('/api/horarios?data=' + data + '&profissional_id=' + profissionalId + '&servico=' + encodeURIComponent(servico))
         .then(res => res.json())
         .then(dados => {
             const grid = document.getElementById('horarios-grid');

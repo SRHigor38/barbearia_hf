@@ -185,18 +185,33 @@ def listar_agendamentos():
     """
     Lista todos os agendamentos cadastrados,
     ordenados do mais recente para o mais antigo.
+    Suporta filtro por profissional (?profissional_id=).
     """
     check = login_necessario()
     if check:
         return check
 
-    agendamentos = Agendamento.query.order_by(
-        Agendamento.criado_em.desc()
+    from services.barbearia_service import listar_todos_profissionais
+
+    # Filtro por profissional
+    filtro_profissional = request.args.get("profissional_id", "")
+
+    query = Agendamento.query
+    if filtro_profissional.isdigit():
+        query = query.filter_by(profissional_id=int(filtro_profissional))
+
+    agendamentos = query.order_by(
+        Agendamento.data.desc(),
+        Agendamento.horario.desc()
     ).all()
+
+    profissionais = listar_todos_profissionais()
 
     return render_template(
         "admin_agendamentos.html",
-        agendamentos=agendamentos
+        agendamentos=agendamentos,
+        profissionais=profissionais,
+        filtro_profissional=filtro_profissional
     )
 
 
@@ -317,6 +332,217 @@ def editar_servico(servico_id):
         servicos=servicos,
         servico_editar=servico
     )
+
+
+# ============================================
+# GERENCIAMENTO DE PROFISSIONAIS
+# ============================================
+
+# Extensões permitidas para upload de foto
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+MAX_UPLOAD_SIZE = 2 * 1024 * 1024  # 2MB
+
+
+def extensao_permitida(nome_arquivo):
+    """Verifica se a extensão do arquivo é permitida."""
+    return "." in nome_arquivo and nome_arquivo.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def salvar_foto_profissional(arquivo):
+    """
+    Valida e salva a foto do profissional de forma segura.
+    Retorna o nome do arquivo salvo ou None se inválido/ausente.
+    """
+    import os
+    import uuid
+
+    if not arquivo or arquivo.filename == "":
+        return None
+
+    # Valida extensão
+    if not extensao_permitida(arquivo.filename):
+        flash("Formato de imagem não permitido (use png, jpg, jpeg, gif, webp).", "error")
+        return None
+
+    # Gera nome seguro e único para evitar sobrescrita
+    ext = arquivo.filename.rsplit(".", 1)[1].lower()
+    nome_arquivo = f"profissional_{uuid.uuid4().hex}.{ext}"
+
+    # Cria diretório se não existir
+    pasta = os.path.join(current_app.root_path, "static", "imagens")
+    os.makedirs(pasta, exist_ok=True)
+
+    # Salva o arquivo
+    arquivo.save(os.path.join(pasta, nome_arquivo))
+    return nome_arquivo
+
+
+@admin_bp.route("/profissionais")
+def listar_profissionais():
+    """
+    Lista todos os profissionais (ativos e inativos).
+    """
+    check = login_necessario()
+    if check:
+        return check
+
+    from services.barbearia_service import (
+        listar_todos_profissionais,
+        contar_agendamentos_profissional,
+    )
+
+    profissionais = listar_todos_profissionais()
+    # Adiciona quantidade de agendamentos para cada profissional
+    for prof in profissionais:
+        prof.qtd_agendamentos = contar_agendamentos_profissional(prof.id)
+
+    return render_template("admin_profissionais.html", profissionais=profissionais)
+
+
+@admin_bp.route("/profissionais/novo", methods=["GET", "POST"])
+def novo_profissional():
+    """
+    Cadastra um novo profissional (com upload de foto).
+    """
+    check = login_necessario()
+    if check:
+        return check
+
+    from services.barbearia_service import criar_profissional
+
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        especialidade = request.form.get("especialidade", "").strip()
+        telefone = request.form.get("telefone", "").strip()
+        descricao = request.form.get("descricao", "").strip()
+        tempo_medio = request.form.get("tempo_medio", "40")
+
+        if not nome:
+            flash("O nome do profissional é obrigatório.", "error")
+        else:
+            try:
+                tempo_medio = int(tempo_medio)
+            except (ValueError, TypeError):
+                tempo_medio = 40
+
+            foto = salvar_foto_profissional(request.files.get("foto"))
+
+            criar_profissional(
+                nome=nome,
+                especialidade=especialidade,
+                telefone=telefone,
+                descricao=descricao,
+                foto=foto,
+                tempo_medio=tempo_medio,
+            )
+            flash("Profissional cadastrado com sucesso!", "success")
+            return redirect(url_for("admin.listar_profissionais"))
+
+    return render_template("admin_profissional_form.html")
+
+
+@admin_bp.route("/profissionais/editar/<int:profissional_id>", methods=["GET", "POST"])
+def editar_profissional(profissional_id):
+    """
+    Edita um profissional (com troca de foto).
+    """
+    check = login_necessario()
+    if check:
+        return check
+
+    from services.barbearia_service import (
+        buscar_profissional_por_id,
+        atualizar_profissional,
+    )
+    import os
+
+    profissional = buscar_profissional_por_id(profissional_id)
+    if profissional is None:
+        flash("Profissional não encontrado.", "error")
+        return redirect(url_for("admin.listar_profissionais"))
+
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        especialidade = request.form.get("especialidade", "").strip()
+        telefone = request.form.get("telefone", "").strip()
+        descricao = request.form.get("descricao", "").strip()
+        ativo = request.form.get("ativo") == "on"
+        try:
+            tempo_medio = int(request.form.get("tempo_medio", "40"))
+        except (ValueError, TypeError):
+            tempo_medio = 40
+
+        if not nome:
+            flash("O nome do profissional é obrigatório.", "error")
+        else:
+            # Troca de foto (se enviada)
+            nova_foto = salvar_foto_profissional(request.files.get("foto"))
+            if nova_foto:
+                # Remove foto antiga se existir
+                if profissional.foto:
+                    caminho = os.path.join(current_app.root_path, "static", "imagens", profissional.foto)
+                    if os.path.exists(caminho):
+                        os.remove(caminho)
+                foto = nova_foto
+            else:
+                foto = profissional.foto
+
+            atualizar_profissional(
+                profissional_id,
+                nome=nome,
+                especialidade=especialidade,
+                telefone=telefone,
+                descricao=descricao,
+                foto=foto,
+                tempo_medio=tempo_medio,
+                ativo=ativo,
+            )
+            flash("Profissional atualizado com sucesso!", "success")
+            return redirect(url_for("admin.listar_profissionais"))
+
+    return render_template("admin_profissional_form.html", profissional=profissional)
+
+
+@admin_bp.route("/profissionais/alternar/<int:profissional_id>")
+def alternar_profissional(profissional_id):
+    """
+    Ativa ou desativa um profissional.
+    """
+    check = login_necessario()
+    if check:
+        return check
+
+    from services.barbearia_service import buscar_profissional_por_id, atualizar_profissional
+
+    profissional = buscar_profissional_por_id(profissional_id)
+    if profissional is None:
+        flash("Profissional não encontrado.", "error")
+    else:
+        novo_status = not profissional.ativo
+        atualizar_profissional(profissional_id, ativo=novo_status)
+        status_texto = "ativado" if novo_status else "desativado"
+        flash(f"Profissional {status_texto} com sucesso!", "success")
+
+    return redirect(url_for("admin.listar_profissionais"))
+
+
+@admin_bp.route("/profissionais/excluir/<int:profissional_id>")
+def excluir_profissional(profissional_id):
+    """
+    Exclui um profissional somente se for seguro (sem agendamentos).
+    """
+    check = login_necessario()
+    if check:
+        return check
+
+    from services.barbearia_service import excluir_profissional as servico_excluir
+
+    if servico_excluir(profissional_id):
+        flash("Profissional excluído com sucesso!", "success")
+    else:
+        flash("Não é possível excluir: o profissional possui agendamentos. Desative-o em vez disso.", "error")
+
+    return redirect(url_for("admin.listar_profissionais"))
 
 
 # ============================================

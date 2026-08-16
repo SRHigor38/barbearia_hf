@@ -9,6 +9,33 @@
     </div>
 </div>
 
+<!-- Filtro por profissional -->
+<div class="admin-card mb-4">
+    <form method="GET" action="/admin/agendamentos" class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label>Profissional</label>
+            <select class="form-control" name="profissional_id" onchange="this.form.submit()">
+                <option value="">Todos os profissionais</option>
+                {% for prof in profissionais %}
+                <option value="{{ prof.id }}" {% if filtro_profissional == prof.id|string %}selected{% endif %}>
+                    {{ prof.nome }} {% if not prof.ativo %}(Inativo){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn-outline-gold w-100" style="padding:8px;font-size:13px;">
+                <i class="bi bi-funnel me-1"></i>Filtrar
+            </button>
+        </div>
+        <div class="col-md-3">
+            <a href="/admin/agendamentos" class="btn-outline-gold w-100 d-block" style="padding:8px;font-size:13px;">
+                <i class="bi bi-x-circle me-1"></i>Limpar
+            </a>
+        </div>
+    </form>
+</div>
+
 <div class="admin-card">
     {% if agendamentos %}
     <div class="table-responsive-custom">
@@ -21,6 +48,7 @@
                     <th>Data</th>
                     <th>Horário</th>
                     <th>Serviço</th>
+                    <th>Profissional</th>
                     <th>Criado em</th>
                     <th>Ações</th>
                 </tr>
@@ -34,6 +62,13 @@
                     <td>{{ agendamento.data }}</td>
                     <td><span class="text-gold">{{ agendamento.horario }}</span></td>
                     <td>{{ agendamento.servico }}</td>
+                    <td>
+                        {% if agendamento.profissional %}
+                            {{ agendamento.profissional.nome }}
+                        {% else %}
+                            <span style="color:#666;">—</span>
+                        {% endif %}
+                    </td>
                     <td>{{ agendamento.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td class="acoes">
                         <a href="/admin/agendamentos/excluir/{{ agendamento.id }}">

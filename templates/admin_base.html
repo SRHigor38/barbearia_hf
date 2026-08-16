@@ -42,6 +42,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.endpoint and 'profissional' in request.endpoint %}active{% endif %}" href="/admin/profissionais">
+                    <i class="bi bi-people"></i> Profissionais
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {% if request.endpoint and 'financeiro' in request.endpoint %}active{% endif %}" href="/admin/financeiro">
                     <i class="bi bi-cash-coin"></i> Financeiro
                 </a>

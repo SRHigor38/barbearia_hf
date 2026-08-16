@@ -243,6 +243,16 @@ def buscar_profissional_por_id(profissional_id):
     return Profissional.query.get(profissional_id)
 
 
+def buscar_profissional_por_nome(nome):
+    """
+    Busca um profissional pelo nome (case-insensitive).
+    Retorna o objeto Profissional ou None.
+    """
+    return Profissional.query.filter(
+        db.func.lower(Profissional.nome) == nome.lower()
+    ).first()
+
+
 def criar_profissional(nome, especialidade, telefone, descricao, foto, tempo_medio):
     """
     Cria e salva um novo profissional no banco.
@@ -259,6 +269,141 @@ def criar_profissional(nome, especialidade, telefone, descricao, foto, tempo_med
     db.session.add(profissional)
     db.session.commit()
     return profissional
+
+
+def atualizar_profissional(profissional_id, nome=None, especialidade=None,
+                           telefone=None, descricao=None, foto=None,
+                           tempo_medio=None, ativo=None):
+    """
+    Atualiza os dados de um profissional existente.
+    Retorna o objeto atualizado ou None se não existir.
+    """
+    profissional = buscar_profissional_por_id(profissional_id)
+    if profissional is None:
+        return None
+
+    if nome is not None:
+        profissional.nome = nome
+    if especialidade is not None:
+        profissional.especialidade = especialidade
+    if telefone is not None:
+        profissional.telefone = telefone
+    if descricao is not None:
+        profissional.descricao = descricao
+    if foto is not None:
+        profissional.foto = foto
+    if tempo_medio is not None:
+        profissional.tempo_medio = tempo_medio
+    if ativo is not None:
+        profissional.ativo = ativo
+
+    db.session.commit()
+    return profissional
+
+
+def excluir_profissional(profissional_id):
+    """
+    Exclui um profissional somente se não possuir agendamentos.
+    Retorna True se excluído, False se não for seguro excluir.
+    """
+    profissional = buscar_profissional_por_id(profissional_id)
+    if profissional is None:
+        return False
+
+    # Verifica se o profissional possui agendamentos
+    tem_agendamentos = Agendamento.query.filter_by(profissional_id=profissional_id).first()
+    if tem_agendamentos:
+        return False  # Não é seguro excluir — possui histórico
+
+    db.session.delete(profissional)
+    db.session.commit()
+    return True
+
+
+def contar_agendamentos_profissional(profissional_id):
+    """
+    Retorna a quantidade de agendamentos de um profissional.
+    """
+    return Agendamento.query.filter_by(profissional_id=profissional_id).count()
+
+
+# ============================================
+# FUNÇÕES DE DISPONIBILIDADE INDIVIDUAL
+# ============================================
+
+
+def verificar_conflito_profissional(profissional_id, data, horario_inicio, duracao_minutos):
+    """
+    Verifica se um profissional já possui agendamento que conflita
+    com o intervalo [horario_inicio, horario_inicio + duracao].
+
+    Considera sobreposição real de horários:
+    - Se o novo agendamento começa antes do existente e termina depois
+    - Se começa dentro do intervalo do existente
+    - Se o existente começa dentro do intervalo do novo
+
+    Retorna True se houver conflito, False caso contrário.
+    """
+    if not profissional_id:
+        return False
+
+    # Converte horário de início para minutos desde 00:00
+    def para_minutos(hhmm):
+        h, m = hhmm.split(":")
+        return int(h) * 60 + int(m)
+
+    inicio_novo = para_minutos(horario_inicio)
+    fim_novo = inicio_novo + duracao_minutos
+
+    # Busca todos os agendamentos do profissional na data
+    agendamentos = Agendamento.query.filter_by(
+        data=data,
+        profissional_id=profissional_id
+    ).all()
+
+    for ag in agendamentos:
+        # Busca a duração do serviço do agendamento existente
+        servico_obj = Servico.query.filter_by(nome=ag.servico).first()
+        duracao_existente = servico_obj.tempo if servico_obj else 40
+
+        inicio_existente = para_minutos(ag.horario)
+        fim_existente = inicio_existente + duracao_existente
+
+        # Verifica sobreposição real
+        if inicio_novo < fim_existente and inicio_existente < fim_novo:
+            return True
+
+    return False
+
+
+def listar_horarios_disponiveis(profissional_id, data, duracao_servico):
+    """
+    Retorna a lista de horários disponíveis para um profissional em uma data,
+    considerando a duração do serviço e os agendamentos existentes.
+
+    Retorna uma lista de dicionários:
+    [{"horario": "14:00", "disponivel": True, "ocupado": False, "bloqueado": False}, ...]
+    """
+    horarios_permitidos = [
+        "08:00", "09:00", "10:00", "11:00",
+        "13:00", "14:00", "15:00", "16:00", "17:00"
+    ]
+
+    resultado = []
+    for horario in horarios_permitidos:
+        ocupado = verificar_conflito_profissional(
+            profissional_id, data, horario, duracao_servico
+        )
+        bloqueado = horario_esta_bloqueado(data, horario)
+
+        resultado.append({
+            "horario": horario,
+            "disponivel": not ocupado and not bloqueado,
+            "ocupado": ocupado,
+            "bloqueado": bloqueado,
+        })
+
+    return resultado
 
 
 # ============================================
@@ -378,4 +523,23 @@ def criar_banco_e_popular():
             )
             db.session.add(servico)
 
+        db.session.commit()
+
+    # ============================================
+    # CRIA PROFISSIONAL PADRÃO "HARRISON" (idempotente)
+    # ============================================
+    # Verifica se já existe um profissional chamado HARRISON
+    # Se não existir, cria automaticamente como ativo.
+    # Se já existir, NÃO cria outro (evita duplicidade).
+    if buscar_profissional_por_nome("HARRISON") is None:
+        harrison = Profissional(
+            nome="HARRISON",
+            especialidade="Cortes e Barba",
+            telefone="",
+            descricao="Profissional da HF Barbearia.",
+            foto=None,
+            tempo_medio=40,
+            ativo=True
+        )
+        db.session.add(harrison)
         db.session.commit()

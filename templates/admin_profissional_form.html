@@ -1,0 +1,94 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2>
+            {% if profissional %}
+                <i class="bi bi-pencil-square text-gold me-2"></i>Editar Profissional
+            {% else %}
+                <i class="bi bi-person-plus text-gold me-2"></i>Novo Profissional
+            {% endif %}
+        </h2>
+        <p>Preencha os dados do profissional</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="admin-form-card">
+            <form method="POST" enctype="multipart/form-data" {% if profissional %}action="/admin/profissionais/editar/{{ profissional.id }}"{% else %}action="/admin/profissionais/novo"{% endif %}>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Foto de perfil -->
+                <div class="text-center mb-4">
+                    <div class="d-inline-block">
+                        {% if profissional and profissional.foto %}
+                            <img src="{{ url_for('static', filename='imagens/' + profissional.foto) }}"
+                                 alt="Foto" class="rounded-circle" style="width:100px;height:100px;object-fit:cover;border:2px solid #d4af37;">
+                        {% else %}
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                 style="width:100px;height:100px;background:#0d0d0d;border:2px solid rgba(255,255,255,0.1);font-size:40px;margin:0 auto;">👤</div>
+                        {% endif %}
+                    </div>
+                    <div class="mt-2">
+                        <label class="btn-outline-gold" style="padding:8px 16px;font-size:12px;cursor:pointer;">
+                            <i class="bi bi-camera me-1"></i>Enviar Foto
+                            <input type="file" name="foto" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;">
+                        </label>
+                        <p style="color:#666;font-size:11px;margin-top:5px;">PNG, JPG, GIF ou WEBP (máx. 2MB)</p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label>Nome *</label>
+                        <input type="text" class="form-control" name="nome"
+                               value="{{ profissional.nome if profissional else '' }}" placeholder="Ex: HARRISON" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label>Especialidade</label>
+                        <input type="text" class="form-control" name="especialidade"
+                               value="{{ profissional.especialidade if profissional else '' }}" placeholder="Ex: Cortes e Barba">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Telefone</label>
+                        <input type="text" class="form-control" name="telefone"
+                               value="{{ profissional.telefone if profissional else '' }}" placeholder="(11) 99999-0000">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Tempo Médio (minutos)</label>
+                        <input type="number" class="form-control" name="tempo_medio"
+                               value="{{ profissional.tempo_medio if profissional else 40 }}" min="1">
+                    </div>
+                    <div class="col-12">
+                        <label>Descrição</label>
+                        <textarea class="form-control" name="descricao" rows="3"
+                                  placeholder="Breve descrição do profissional">{{ profissional.descricao if profissional else '' }}</textarea>
+                    </div>
+                    {% if profissional %}
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="ativo" id="ativo" {% if profissional.ativo %}checked{% endif %}>
+                            <label class="form-check-label" for="ativo" style="color:#fff;">Profissional ativo</label>
+                        </div>
+                        <p style="color:#666;font-size:12px;">Se desativado, não aparecerá para novos agendamentos, mas manterá o histórico.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn-gold">
+                        <i class="bi bi-check-lg me-2"></i>{% if profissional %}Salvar Alterações{% else %}Cadastrar{% endif %}
+                    </button>
+                    <a href="/admin/profissionais">
+                        <button type="button" class="btn-outline-gold">Cancelar</button>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

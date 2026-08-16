@@ -16,6 +16,8 @@ from services.barbearia_service import (
     validar_data,
     validar_horario,
     verificar_conflito_horario,
+    verificar_conflito_profissional,
+    listar_horarios_disponiveis,
     criar_agendamento,
     listar_profissionais,
     buscar_profissional_por_id,
@@ -148,18 +150,37 @@ def agendamento():
         return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
 
     # ============================================
-    # PASSO 7: Valida conflito de horário
+    # PASSO 7: Valida o profissional
     # ============================================
-    if verificar_conflito_horario(data, horario):
+    profissional_id_int = int(profissional_id) if profissional_id.isdigit() else None
+
+    if profissional_id_int is None:
+        flash("Selecione um profissional.", "error")
+        return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
+
+    profissional = buscar_profissional_por_id(profissional_id_int)
+    if profissional is None or not profissional.ativo:
+        flash("Profissional inválido ou inativo.", "error")
+        return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
+
+    # ============================================
+    # PASSO 8: Valida conflito de horário individual
+    # ============================================
+    # Busca a duração do serviço
+    servico_obj = buscar_servico_por_nome(nome_servico)
+    duracao_servico = servico_obj.tempo if servico_obj else 40
+
+    # Verifica conflito real de sobreposição para o profissional
+    if verificar_conflito_profissional(profissional_id_int, data, horario, duracao_servico):
         flash(
-            f"Este horário ({horario}) já está agendado para "
-            f"a data {data}. Escolha outro horário.",
+            f"Este horário ({horario}) já está ocupado para {profissional.nome} "
+            f"na data {data}. Escolha outro horário.",
             "error"
         )
         return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
 
     # ============================================
-    # PASSO 8: Valida bloqueio manual
+    # PASSO 9: Valida bloqueio manual
     # ============================================
     if horario_esta_bloqueado(data, horario):
         flash(
@@ -170,15 +191,13 @@ def agendamento():
         return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
 
     # ============================================
-    # PASSO 9: Cria/vincula cliente automaticamente
+    # PASSO 10: Cria/vincula cliente automaticamente
     # ============================================
     cliente = criar_cliente(nome=nome, telefone=telefone)
 
     # ============================================
-    # PASSO 10: Salva o agendamento no banco de dados
+    # PASSO 11: Salva o agendamento no banco de dados
     # ============================================
-    profissional_id_int = int(profissional_id) if profissional_id.isdigit() else None
-
     criar_agendamento(
         nome, telefone, data, horario, nome_servico,
         profissional_id=profissional_id_int,
@@ -203,24 +222,23 @@ def agendamento():
 @main_bp.route("/api/horarios")
 def api_horarios():
     """
-    API interna: retorna os horários disponíveis para uma data.
-    Usada pelo front-end para atualizar o calendário dinamicamente.
+    API interna: retorna os horários disponíveis para um profissional
+    em uma data, considerando a duração do serviço.
+    Usada pelo front-end para atualizar os horários dinamicamente.
     """
     data = request.args.get("data", "")
-    horarios_permitidos = [
-        "08:00", "09:00", "10:00", "11:00",
-        "13:00", "14:00", "15:00", "16:00", "17:00"
-    ]
+    profissional_id = request.args.get("profissional_id", "")
+    servico_nome = request.args.get("servico", "")
 
-    horarios = []
-    for horario in horarios_permitidos:
-        ocupado = verificar_conflito_horario(data, horario)
-        bloqueado = horario_esta_bloqueado(data, horario)
-        horarios.append({
-            "horario": horario,
-            "disponivel": not ocupado and not bloqueado,
-            "ocupado": ocupado,
-            "bloqueado": bloqueado,
-        })
+    # Duração do serviço (padrão 40 min)
+    duracao = 40
+    if servico_nome:
+        servico_obj = buscar_servico_por_nome(servico_nome)
+        duracao = servico_obj.tempo if servico_obj else 40
+
+    profissional_id_int = int(profissional_id) if profissional_id.isdigit() else None
+
+    # Usa a função de disponibilidade individual por profissional
+    horarios = listar_horarios_disponiveis(profissional_id_int, data, duracao)
 
     return jsonify({"horarios": horarios})

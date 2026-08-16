@@ -1,0 +1,85 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-people text-gold me-2"></i>Profissionais</h2>
+        <p>Gerencie os profissionais da barbearia</p>
+    </div>
+    <a href="/admin/profissionais/novo">
+        <button class="btn-gold">
+            <i class="bi bi-person-plus me-2"></i>Novo Profissional
+        </button>
+    </a>
+</div>
+
+<div class="admin-card">
+    {% if profissionais %}
+    <div class="table-responsive-custom">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Foto</th>
+                    <th>Nome</th>
+                    <th>Especialidade</th>
+                    <th>Status</th>
+                    <th>Agendamentos</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prof in profissionais %}
+                <tr>
+                    <td>
+                        {% if prof.foto %}
+                            <img src="{{ url_for('static', filename='imagens/' + prof.foto) }}"
+                                 alt="{{ prof.nome }}" class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
+                        {% else %}
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                 style="width:45px;height:45px;background:#0d0d0d;border:1px solid rgba(255,255,255,0.1);font-size:20px;">👤</div>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ prof.nome }}</strong></td>
+                    <td>{{ prof.especialidade or '—' }}</td>
+                    <td>
+                        {% if prof.ativo %}
+                            <span style="color:#28a745;font-size:13px;">
+                                <i class="bi bi-check-circle me-1"></i>Ativo
+                            </span>
+                        {% else %}
+                            <span style="color:#dc3545;font-size:13px;">
+                                <i class="bi bi-x-circle me-1"></i>Inativo
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>{{ prof.qtd_agendamentos }}</td>
+                    <td class="acoes">
+                        <a href="/admin/profissionais/editar/{{ prof.id }}">
+                            <button class="btn-edit"><i class="bi bi-pencil me-1"></i>Editar</button>
+                        </a>
+                        <a href="/admin/profissionais/alternar/{{ prof.id }}" onclick="return confirm('Confirmar alteração de status?');">
+                            {% if prof.ativo %}
+                                <button class="btn-danger-custom"><i class="bi bi-pause-circle me-1"></i>Desativar</button>
+                            {% else %}
+                                <button class="btn-success-custom"><i class="bi bi-play-circle me-1"></i>Ativar</button>
+                            {% endif %}
+                        </a>
+                        <a href="/admin/profissionais/excluir/{{ prof.id }}" onclick="return confirm('Excluir profissional? Ação só permite se não houver agendamentos.');">
+                            <button class="btn-danger-custom"><i class="bi bi-trash me-1"></i>Excluir</button>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="admin-empty">
+        <i class="bi bi-people"></i>
+        <p>Nenhum profissional cadastrado.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
