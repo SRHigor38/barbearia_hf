@@ -221,19 +221,42 @@ let dataSelecionada = '';
 let horarioSelecionado = '';
 
 // Avança para a próxima etapa
-function nextStep(etapa) {
-    // Validações por etapa
-    if (etapa === 3 && !dataSelecionada) {
-        alert('Selecione uma data.');
-        return;
-    }
-    if (etapa === 4 && !horarioSelecionado) {
-        alert('Selecione um horário.');
-        return;
+// Valida SOMENTE os dados da etapa ATUAL antes de avançar.
+// Exemplo: na etapa 2 (profissional), só exige profissional selecionado;
+// não exige data nem horário (que são das etapas 3 e 4).
+function nextStep(etapaDestino) {
+    // ----- Valida etapa ATUAL = 2 (Profissional) -----
+    if (etapaAtual === 2) {
+        const profissionalId = document.getElementById('profissional_id').value;
+        if (!profissionalId) {
+            alert('Selecione um profissional.');
+            return;
+        }
     }
 
-    etapaAtual = etapa;
+    // ----- Valida etapa ATUAL = 3 (Data) -----
+    if (etapaAtual === 3) {
+        if (!dataSelecionada) {
+            alert('Selecione uma data.');
+            return;
+        }
+    }
+
+    // ----- Valida etapa ATUAL = 4 (Horário) -----
+    if (etapaAtual === 4) {
+        if (!horarioSelecionado) {
+            alert('Selecione um horário.');
+            return;
+        }
+    }
+
+    etapaAtual = etapaDestino;
     atualizarEtapas();
+
+    // Ao chegar na etapa de data (3), gera o calendário
+    if (etapaDestino === 3) {
+        gerarCalendario();
+    }
 }
 
 // Volta para a etapa anterior
