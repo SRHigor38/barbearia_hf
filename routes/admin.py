@@ -403,6 +403,7 @@ def listar_profissionais():
 def novo_profissional():
     """
     Cadastra um novo profissional (com upload de foto).
+    Campos: foto, nome e status (ativo).
     """
     check = login_necessario()
     if check:
@@ -412,29 +413,14 @@ def novo_profissional():
 
     if request.method == "POST":
         nome = request.form.get("nome", "").strip()
-        especialidade = request.form.get("especialidade", "").strip()
-        telefone = request.form.get("telefone", "").strip()
-        descricao = request.form.get("descricao", "").strip()
-        tempo_medio = request.form.get("tempo_medio", "40")
+        ativo = request.form.get("ativo") == "on" or True  # Novo = ativo por padrão
 
         if not nome:
             flash("O nome do profissional é obrigatório.", "error")
         else:
-            try:
-                tempo_medio = int(tempo_medio)
-            except (ValueError, TypeError):
-                tempo_medio = 40
-
             foto = salvar_foto_profissional(request.files.get("foto"))
 
-            criar_profissional(
-                nome=nome,
-                especialidade=especialidade,
-                telefone=telefone,
-                descricao=descricao,
-                foto=foto,
-                tempo_medio=tempo_medio,
-            )
+            criar_profissional(nome=nome, foto=foto)
             flash("Profissional cadastrado com sucesso!", "success")
             return redirect(url_for("admin.listar_profissionais"))
 
@@ -463,14 +449,7 @@ def editar_profissional(profissional_id):
 
     if request.method == "POST":
         nome = request.form.get("nome", "").strip()
-        especialidade = request.form.get("especialidade", "").strip()
-        telefone = request.form.get("telefone", "").strip()
-        descricao = request.form.get("descricao", "").strip()
         ativo = request.form.get("ativo") == "on"
-        try:
-            tempo_medio = int(request.form.get("tempo_medio", "40"))
-        except (ValueError, TypeError):
-            tempo_medio = 40
 
         if not nome:
             flash("O nome do profissional é obrigatório.", "error")
@@ -490,11 +469,7 @@ def editar_profissional(profissional_id):
             atualizar_profissional(
                 profissional_id,
                 nome=nome,
-                especialidade=especialidade,
-                telefone=telefone,
-                descricao=descricao,
                 foto=foto,
-                tempo_medio=tempo_medio,
                 ativo=ativo,
             )
             flash("Profissional atualizado com sucesso!", "success")
@@ -588,92 +563,6 @@ def listar_relatorios():
         data_inicio=data_inicio,
         data_fim=data_fim
     )
-
-
-# ============================================
-# FINANCEIRO
-# ============================================
-
-
-@admin_bp.route("/financeiro")
-def listar_financeiro():
-    """
-    Lista todos os registros financeiros.
-    Mostra data, cliente, serviço, valor, status e forma de pagamento.
-    Exibe totais do dia, mês e ano.
-    """
-    check = login_necessario()
-    if check:
-        return check
-
-    from models.financeiro import Financeiro
-    from datetime import datetime, date
-
-    hoje = date.today()
-    hoje_str = hoje.strftime("%Y-%m-%d")
-    mes_atual = hoje.strftime("%Y-%m")
-    ano_atual = hoje.strftime("%Y")
-
-    # Busca todos os registros financeiros com dados do agendamento
-    registros = db.session.query(
-        Financeiro, Agendamento
-    ).join(
-        Agendamento, Financeiro.agendamento_id == Agendamento.id
-    ).order_by(
-        Financeiro.criado_em.desc()
-    ).all()
-
-    # Calcula totais
-    total_dia = 0
-    total_mes = 0
-    total_ano = 0
-
-    for fin, ag in registros:
-        if ag.data == hoje_str:
-            total_dia += fin.valor
-        if ag.data.startswith(mes_atual):
-            total_mes += fin.valor
-        if ag.data.startswith(ano_atual):
-            total_ano += fin.valor
-
-    return render_template(
-        "admin_financeiro.html",
-        registros=registros,
-        total_dia=total_dia,
-        total_mes=total_mes,
-        total_ano=total_ano
-    )
-
-
-@admin_bp.route("/financeiro/atualizar_status/<int:financeiro_id>", methods=["POST"])
-def atualizar_status_financeiro(financeiro_id):
-    """
-    Atualiza o status e a forma de pagamento de um registro financeiro.
-    """
-    check = login_necessario()
-    if check:
-        return check
-
-    from models.financeiro import Financeiro
-
-    financeiro = Financeiro.query.get(financeiro_id)
-
-    if financeiro is None:
-        flash("Registro financeiro não encontrado.", "error")
-        return redirect(url_for("admin.listar_financeiro"))
-
-    novo_status = request.form.get("status")
-    forma_pagamento = request.form.get("forma_pagamento")
-
-    if novo_status in ["pendente", "pago", "cancelado"]:
-        financeiro.status = novo_status
-
-    if forma_pagamento in ["dinheiro", "cartao", "pix", ""]:
-        financeiro.forma_pagamento = forma_pagamento if forma_pagamento else None
-
-    db.session.commit()
-    flash("Registro financeiro atualizado com sucesso!", "success")
-    return redirect(url_for("admin.listar_financeiro"))
 
 
 @admin_bp.route("/servicos/excluir/<int:servico_id>")

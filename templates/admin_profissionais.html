@@ -22,7 +22,6 @@
                 <tr>
                     <th>Foto</th>
                     <th>Nome</th>
-                    <th>Especialidade</th>
                     <th>Status</th>
                     <th>Agendamentos</th>
                     <th>Ações</th>
@@ -41,7 +40,6 @@
                         {% endif %}
                     </td>
                     <td><strong>{{ prof.nome }}</strong></td>
-                    <td>{{ prof.especialidade or '—' }}</td>
                     <td>
                         {% if prof.ativo %}
                             <span style="color:#28a745;font-size:13px;">

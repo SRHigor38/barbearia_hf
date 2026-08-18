@@ -41,42 +41,23 @@
                     </div>
                 </div>
 
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label>Nome *</label>
-                        <input type="text" class="form-control" name="nome"
-                               value="{{ profissional.nome if profissional else '' }}" placeholder="Ex: HARRISON" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label>Especialidade</label>
-                        <input type="text" class="form-control" name="especialidade"
-                               value="{{ profissional.especialidade if profissional else '' }}" placeholder="Ex: Cortes e Barba">
-                    </div>
-                    <div class="col-md-6">
-                        <label>Telefone</label>
-                        <input type="text" class="form-control" name="telefone"
-                               value="{{ profissional.telefone if profissional else '' }}" placeholder="(11) 99999-0000">
-                    </div>
-                    <div class="col-md-6">
-                        <label>Tempo Médio (minutos)</label>
-                        <input type="number" class="form-control" name="tempo_medio"
-                               value="{{ profissional.tempo_medio if profissional else 40 }}" min="1">
-                    </div>
-                    <div class="col-12">
-                        <label>Descrição</label>
-                        <textarea class="form-control" name="descricao" rows="3"
-                                  placeholder="Breve descrição do profissional">{{ profissional.descricao if profissional else '' }}</textarea>
-                    </div>
-                    {% if profissional %}
-                    <div class="col-12">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="ativo" id="ativo" {% if profissional.ativo %}checked{% endif %}>
-                            <label class="form-check-label" for="ativo" style="color:#fff;">Profissional ativo</label>
-                        </div>
-                        <p style="color:#666;font-size:12px;">Se desativado, não aparecerá para novos agendamentos, mas manterá o histórico.</p>
-                    </div>
-                    {% endif %}
+                <!-- Nome -->
+                <div class="mb-3">
+                    <label>Nome *</label>
+                    <input type="text" class="form-control" name="nome"
+                           value="{{ profissional.nome if profissional else '' }}" placeholder="Ex: HARRISON" required>
                 </div>
+
+                <!-- Status -->
+                {% if profissional %}
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="ativo" id="ativo" {% if profissional.ativo %}checked{% endif %}>
+                        <label class="form-check-label" for="ativo" style="color:#fff;">Profissional ativo</label>
+                    </div>
+                    <p style="color:#666;font-size:12px;">Se desativado, não aparecerá para novos agendamentos, mas manterá o histórico.</p>
+                </div>
+                {% endif %}
 
                 <div class="d-flex gap-2 mt-4">
                     <button type="submit" class="btn-gold">

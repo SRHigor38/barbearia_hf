@@ -253,17 +253,14 @@ def buscar_profissional_por_nome(nome):
     ).first()
 
 
-def criar_profissional(nome, especialidade, telefone, descricao, foto, tempo_medio):
+def criar_profissional(nome, foto=None):
     """
     Cria e salva um novo profissional no banco.
+    Campos: nome e foto (ativo=True por padrão).
     """
     profissional = Profissional(
         nome=nome,
-        especialidade=especialidade,
-        telefone=telefone,
-        descricao=descricao,
         foto=foto,
-        tempo_medio=tempo_medio,
         ativo=True
     )
     db.session.add(profissional)
@@ -271,11 +268,10 @@ def criar_profissional(nome, especialidade, telefone, descricao, foto, tempo_med
     return profissional
 
 
-def atualizar_profissional(profissional_id, nome=None, especialidade=None,
-                           telefone=None, descricao=None, foto=None,
-                           tempo_medio=None, ativo=None):
+def atualizar_profissional(profissional_id, nome=None, foto=None, ativo=None):
     """
     Atualiza os dados de um profissional existente.
+    Campos: nome, foto e ativo.
     Retorna o objeto atualizado ou None se não existir.
     """
     profissional = buscar_profissional_por_id(profissional_id)
@@ -284,16 +280,8 @@ def atualizar_profissional(profissional_id, nome=None, especialidade=None,
 
     if nome is not None:
         profissional.nome = nome
-    if especialidade is not None:
-        profissional.especialidade = especialidade
-    if telefone is not None:
-        profissional.telefone = telefone
-    if descricao is not None:
-        profissional.descricao = descricao
     if foto is not None:
         profissional.foto = foto
-    if tempo_medio is not None:
-        profissional.tempo_medio = tempo_medio
     if ativo is not None:
         profissional.ativo = ativo
 
@@ -534,11 +522,7 @@ def criar_banco_e_popular():
     if buscar_profissional_por_nome("HARRISON") is None:
         harrison = Profissional(
             nome="HARRISON",
-            especialidade="Cortes e Barba",
-            telefone="",
-            descricao="Profissional da HF Barbearia.",
             foto=None,
-            tempo_medio=40,
             ativo=True
         )
         db.session.add(harrison)
