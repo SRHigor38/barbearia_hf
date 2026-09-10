@@ -9,7 +9,9 @@ from flask import Blueprint
 # Blueprint para rotas públicas (/, /agendamento)
 main_bp = Blueprint("main", __name__)
 
-# Blueprint para rotas administrativas (/admin, /admin/login, etc.)
+# Blueprint para rotas administrativas.
+# Usa um prefixo separado e não divulgado na interface pública.
+# O acesso administrativo NÃO aparece no menu público.
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 # Importa as rotas de cada blueprint para registrá-las

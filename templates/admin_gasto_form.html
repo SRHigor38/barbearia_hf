@@ -1,0 +1,61 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-pencil-square text-gold me-2"></i>Editar Gasto</h2>
+        <p>Atualize os dados da despesa</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="admin-form-card">
+            <form method="POST" action="/admin/gastos/editar/{{ despesa.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="mb-3">
+                    <label>Descrição *</label>
+                    <input type="text" class="form-control" name="descricao" value="{{ despesa.descricao }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label>Categoria</label>
+                    <select class="form-control" name="categoria">
+                        {% for cat in categorias %}
+                        <option value="{{ cat }}" {% if despesa.categoria == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label>Valor (R$) *</label>
+                    <input type="number" step="0.01" min="0.01" class="form-control" name="valor"
+                           value="{{ '%.2f'|format(despesa.valor) }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label>Data *</label>
+                    <input type="date" class="form-control" name="data" value="{{ despesa.data }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label>Observação</label>
+                    <textarea class="form-control" name="observacao" rows="2">{{ despesa.observacao or '' }}</textarea>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn-gold">
+                        <i class="bi bi-check-lg me-2"></i>Salvar Alterações
+                    </button>
+                    <a href="/admin/gastos">
+                        <button type="button" class="btn-outline-gold">Cancelar</button>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

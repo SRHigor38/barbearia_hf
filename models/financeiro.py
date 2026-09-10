@@ -1,8 +1,13 @@
 # ============================================
 # MODELO: Financeiro
 # ============================================
-# Representa o registro financeiro de um agendamento.
-# Cada agendamento pode ter um registro financeiro associado.
+# Representa o registro financeiro de uma movimentação da barbearia.
+# Evoluído para cobrir:
+#   - Receitas de agendamentos normais (agendamento_id)
+#   - Receitas de planos (venda/renovação) (plano_id)
+#   - Taxas de cartão/maquininha vinculadas ao pagamento
+# O valor é armazenado em REAIS (ex: 50.0 = R$ 50,00).
+# Apenas registros com status == "pago" entram no faturamento.
 
 from models import db
 from datetime import datetime
@@ -12,12 +17,17 @@ class Financeiro(db.Model):
     """
     Tabela: financeiro
     Colunas:
-        id                -> Identificador único (inteiro, chave primária)
-        agendamento_id    -> ID do agendamento relacionado (inteiro, chave estrangeira)
-        valor             -> Valor do serviço (inteiro, em reais)
-        status            -> Status do pagamento (texto: pendente, pago, cancelado)
-        forma_pagamento   -> Forma de pagamento (texto: dinheiro, cartao, pix)
-        criado_em         -> Data/hora da criação do registro (automático)
+        id                -> Identificador único (chave primária)
+        agendamento_id    -> FK para agendamento.id (opcional — receita de serviço)
+        plano_id          -> FK para plano.id (opcional — receita de plano/renovação)
+        tipo              -> Origem: agendamento | plano | renovacao_plano
+        descricao         -> Descrição da movimentação (ex: "Corte - João")
+        valor             -> Valor em reais (Float; centavos suportados)
+        taxa_cartao       -> Taxa da maquininha em reais (0 se não cartão)
+        status            -> pendente | pago | cancelado (só "pago" entra no lucro)
+        forma_pagamento   -> dinheiro | pix | cartao | None
+        data_pagamento    -> Data do evento (YYYY-MM-DD) para filtros por período
+        criado_em         -> Data/hora da criação do registro
     """
 
     __tablename__ = "financeiro"
@@ -26,24 +36,34 @@ class Financeiro(db.Model):
     agendamento_id = db.Column(
         db.Integer,
         db.ForeignKey("agendamento.id"),
-        nullable=False,
+        nullable=True,
         unique=True  # Um agendamento só pode ter um registro financeiro
     )
-    valor = db.Column(db.Integer, nullable=False)
+    plano_id = db.Column(
+        db.Integer,
+        db.ForeignKey("plano.id"),
+        nullable=True
+    )
+    tipo = db.Column(db.String(30), nullable=False, default="agendamento")
+    descricao = db.Column(db.String(300), nullable=True)
+    valor = db.Column(db.Float, nullable=False, default=0)
+    taxa_cartao = db.Column(db.Float, nullable=False, default=0)
     status = db.Column(db.String(20), nullable=False, default="pendente")
     forma_pagamento = db.Column(db.String(20), nullable=True, default=None)
+    data_pagamento = db.Column(db.String(10), nullable=True)
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
 
     # ============================================
-    # RELACIONAMENTO
+    # RELACIONAMENTOS
     # ============================================
-    # Cria um vínculo com o modelo Agendamento.
-    # backref="financeiro": permite acessar o financeiro de um agendamento
-    # via agendamento.financeiro
-    agendamento = db.relationship("Agendamento", backref=db.backref("financeiro", uselist=False))
+    agendamento = db.relationship(
+        "Agendamento", backref=db.backref("financeiro", uselist=False)
+    )
+    plano = db.relationship("Plano", backref="financeiros")
 
     def __repr__(self):
+        tipo = self.tipo or "agendamento"
         return (
-            f"<Financeiro {self.id}: Agendamento #{self.agendamento_id} - "
-            f"R${self.valor} - {self.status}>"
+            f"<Financeiro {self.id}: {tipo} - "
+            f"R${self.valor:.2f} - {self.status}>"
         )

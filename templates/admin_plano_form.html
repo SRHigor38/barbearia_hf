@@ -1,0 +1,148 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-person-plus text-gold me-2"></i>Cadastrar Cliente no Plano</h2>
+        <p>Selecione o plano e cadastre o cliente</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="admin-form-card">
+            <form method="POST" action="/admin/planos/novo">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Cliente -->
+                <div class="mb-3">
+                    <label>Nome do cliente *</label>
+                    <input type="text" class="form-control" name="nome" placeholder="Ex: João Silva" required>
+                </div>
+
+                <div class="mb-3">
+                    <label>Telefone *</label>
+                    <input type="tel" class="form-control" name="telefone" placeholder="(11) 99999-8888" required>
+                </div>
+
+                <!-- Tipo de plano -->
+                <div class="mb-3">
+                    <label>Tipo de plano *</label>
+                    <select class="form-select" name="plano_tipo_id" id="plano_tipo_id" required onchange="atualizarPlano()">
+                        <option value="">Selecione um plano</option>
+                        {% for pt in planos_tipos %}
+                        <option value="{{ pt.id }}"
+                                data-servicos="{{ pt.servicos_inclusos | map(attribute='nome') | join(',') }}"
+                                data-duracao="{{ pt.duracao_total }}"
+                                data-dias="{{ pt.dias_permitidos }}">
+                            {{ pt.nome }} — R$ {{ "%.2f"|format(pt.preco / 100) }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Resumo do plano (auto-preenchido) -->
+                <div class="mb-3" id="resumo_plano" style="display:none;">
+                    <div class="admin-form-card" style="background:#111; border:1px solid rgba(212,175,55,0.2);">
+                        <h5 style="color:#d4af37; margin-bottom:10px;" id="plano_nome_resumo"></h5>
+                        <div id="plano_servicos_resumo"></div>
+                        <div id="plano_duracao_resumo" style="margin-top:8px; font-size:13px; color:#999;"></div>
+                        <div id="plano_dias_resumo" style="margin-top:4px; font-size:13px; color:#999;"></div>
+                    </div>
+                </div>
+
+                <!-- Dias permitidos -->
+                <div class="mb-3">
+                    <label>Dias permitidos para agendamento</label>
+                    <div class="row g-2 mt-1">
+                        <div class="col-6 col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dias" value="7" id="domingo">
+                                <label class="form-check-label" for="domingo" style="color:#fff;">Domingo</label>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dias" value="1" id="segunda" checked>
+                                <label class="form-check-label" for="segunda" style="color:#fff;">Segunda</label>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dias" value="2" id="terca" checked>
+                                <label class="form-check-label" for="terca" style="color:#fff;">Terça</label>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dias" value="3" id="quarta" checked>
+                                <label class="form-check-label" for="quarta" style="color:#fff;">Quarta</label>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dias" value="4" id="quinta" checked>
+                                <label class="form-check-label" for="quinta" style="color:#fff;">Quinta</label>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dias" value="5" id="sexta" checked>
+                                <label class="form-check-label" for="sexta" style="color:#fff;">Sexta</label>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dias" value="6" id="sabado" checked>
+                                <label class="form-check-label" for="sabado" style="color:#fff;">Sábado</label>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="color:#666; font-size:12px; margin-top:8px;">Selecione os dias em que o cliente poderá agendar. Se nenhum for selecionado, todos os dias serão permitidos.</p>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn-gold">
+                        <i class="bi bi-check-lg me-2"></i>Cadastrar no Plano
+                    </button>
+                    <a href="/admin/planos">
+                        <button type="button" class="btn-outline-gold">Cancelar</button>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function atualizarPlano() {
+    var select = document.getElementById('plano_tipo_id');
+    var option = select.options[select.selectedIndex];
+    var resumo = document.getElementById('resumo_plano');
+    var nomeResumo = document.getElementById('plano_nome_resumo');
+    var servicosResumo = document.getElementById('plano_servicos_resumo');
+    var duracaoResumo = document.getElementById('plano_duracao_resumo');
+    var diasResumo = document.getElementById('plano_dias_resumo');
+
+    if (select.value) {
+        var servicos = option.getAttribute('data-servicos').split(',');
+        var duracao = option.getAttribute('data-duracao');
+        var dias = option.getAttribute('data-dias');
+
+        var diasNomes = {'1':'Segunda','2':'Terça','3':'Quarta','4':'Quinta','5':'Sexta','6':'Sábado','7':'Domingo'};
+        var diasTexto = dias.split(',').map(function(d) { return diasNomes[d]; }).join(', ');
+
+        nomeResumo.textContent = option.textContent;
+        servicosResumo.innerHTML = '<div style="font-size:13px; color:#999; margin:4px 0;">Pacote: ' + servicos.join(' + ') + '</div>';
+        duracaoResumo.textContent = 'Duração total: ' + duracao + ' minutos';
+        diasResumo.textContent = 'Dias padrão: ' + diasTexto;
+
+        resumo.style.display = 'block';
+    } else {
+        resumo.style.display = 'none';
+    }
+}
+</script>
+
+{% endblock %}

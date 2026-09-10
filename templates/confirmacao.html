@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agendamento Confirmado — HF Barbearia</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
 </head>
 <body>
 
@@ -37,6 +37,41 @@
         <h1>Agendamento Confirmado!</h1>
 
         <div class="text-start" style="max-width: 400px; margin: 0 auto;">
+
+            {% if agendamento %}
+            <!-- Confirmação de agendamento com PLANO -->
+            <div class="info-linha">
+                <span class="info-label"><i class="bi bi-person me-2"></i>Cliente</span>
+                <span class="info-value">{{ cliente.nome }}</span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label"><i class="bi bi-telephone me-2"></i>Telefone</span>
+                <span class="info-value">{{ cliente.telefone }}</span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label"><i class="bi bi-stars me-2"></i>Plano</span>
+                <span class="info-value">{{ plano.nome }}</span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label"><i class="bi bi-scissors me-2"></i>Serviços</span>
+                <span class="info-value">
+                    {% for s in servicos_pacote %}{{ s.nome }}{% if not loop.last %} + {% endif %}{% endfor %}
+                </span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label"><i class="bi bi-person-badge me-2"></i>Profissional</span>
+                <span class="info-value">{{ profissional.nome }}</span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label"><i class="bi bi-calendar me-2"></i>Data</span>
+                <span class="info-value">{{ data }}</span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label"><i class="bi bi-clock me-2"></i>Horário</span>
+                <span class="info-value">{{ horario }}</span>
+            </div>
+            {% else %}
+            <!-- Confirmação de agendamento NORMAL -->
             <div class="info-linha">
                 <span class="info-label"><i class="bi bi-person me-2"></i>Nome</span>
                 <span class="info-value">{{ nome }}</span>
@@ -57,6 +92,8 @@
                 <span class="info-label"><i class="bi bi-scissors me-2"></i>Serviço</span>
                 <span class="info-value">{{ servico }}</span>
             </div>
+            {% endif %}
+
         </div>
 
         <div class="mt-4">

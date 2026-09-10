@@ -7,9 +7,13 @@ venv/
 env/
 .venv/
 
-# Banco de dados SQLite
+# Banco de dados SQLite (real y temporarios)
 *.db
 *.sqlite
+*_temp.db
+
+# Pasta instance do Flask
+instance/
 
 # Arquivos de configuração com senhas
 .env
@@ -23,10 +27,19 @@ __pycache__/
 # Configurações do VS Code (exceto settings.json)
 .vscode/
 
-# Arquivos temporários
+# Arquivos temporários y de salida de tests
 tempCodeRunnerFile.py
 *.tmp
 *.log
+*_out.txt
+*_output.txt
+*_recheck.txt
+check_*.py
+diag_*.py
+limpar_*.py
+estado*.txt
+tracked*.txt
+dirlist*.txt
 
 # IDE
 .idea/

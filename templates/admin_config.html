@@ -1,0 +1,80 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-gear text-gold me-2"></i>Configurações</h2>
+        <p>Altere seu usuário de login e senha</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Alterar usuário -->
+    <div class="col-lg-6">
+        <div class="admin-form-card">
+            <h3 style="color:#fff;font-weight:700;font-size:17px;margin-bottom:15px;">
+                <i class="bi bi-person-circle me-2 text-gold"></i>Alterar Usuário
+            </h3>
+            <form method="POST" action="/admin/config">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="acao" value="usuario">
+
+                <div class="mb-3">
+                    <label>Usuário atual</label>
+                    <input type="text" class="form-control" value="{{ session.get('admin_usuario', '') }}" disabled>
+                </div>
+
+                <div class="mb-3">
+                    <label>Novo usuário *</label>
+                    <input type="text" class="form-control" name="novo_usuario"
+                           placeholder="Digite o novo usuário" minlength="3" required>
+                    <div style="font-size:12px;color:#999;margin-top:5px;">
+                        Mínimo de 3 caracteres. Não pode ser igual a outro usuário.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-gold">
+                    <i class="bi bi-check-lg me-2"></i>Alterar Usuário
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alterar senha -->
+    <div class="col-lg-6">
+        <div class="admin-form-card">
+            <h3 style="color:#fff;font-weight:700;font-size:17px;margin-bottom:15px;">
+                <i class="bi bi-shield-lock me-2 text-gold"></i>Alterar Senha
+            </h3>
+            <form method="POST" action="/admin/config">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="acao" value="senha">
+
+                <div class="mb-3">
+                    <label>Senha atual *</label>
+                    <input type="password" class="form-control" name="senha_atual" required>
+                </div>
+
+                <div class="mb-3">
+                    <label>Nova senha *</label>
+                    <input type="password" class="form-control" name="nova_senha" minlength="6" required>
+                    <div style="font-size:12px;color:#999;margin-top:5px;">
+                        Mínimo de 6 caracteres. Armazenada com criptografia bcrypt.
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label>Confirmar nova senha *</label>
+                    <input type="password" class="form-control" name="confirmar_senha" minlength="6" required>
+                </div>
+
+                <button type="submit" class="btn-gold">
+                    <i class="bi bi-check-lg me-2"></i>Alterar Senha
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

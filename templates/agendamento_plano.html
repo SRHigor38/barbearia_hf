@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendar Plano — HF Barbearia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-hf">
+    <div class="container">
+        <a class="navbar-brand" href="/">💈 <span>HF</span> Barbearia</a>
+        <a href="/meu-plano/area" class="btn-outline-gold" style="padding:8px 20px; font-size:13px;">
+            <i class="bi bi-arrow-left me-1"></i>Voltar ao Plano
+        </a>
+    </div>
+</nav>
+
+<!-- Flash Messages -->
+{% with mensagens = get_flashed_messages(with_categories=True) %}
+    {% if mensagens %}
+        <div class="container mt-3">
+            {% for categoria, mensagem in mensagens %}
+                <div class="flash-message {{ categoria }}">{{ mensagem }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<!-- ============================================ -->
+<!-- FLUXO DE AGENDAMENTO COM PLANO
+<!-- Dia → Horário → Profissional → Agendamento direto
+<!-- ============================================ -->
+<div class="form-container">
+    <div class="form-card">
+        <h1><i class="bi bi-calendar-check text-gold me-2"></i>Agendar Meu Pacote</h1>
+        <p class="form-subtitle">Complete as etapas para confirmar seu horário</p>
+
+        <!-- Dados do cliente (somente leitura) -->
+        <div class="resumo-agendamento mb-4">
+            <div class="info-linha">
+                <span class="info-label">Cliente</span>
+                <span class="info-value">{{ cliente.nome }}</span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label">Telefone</span>
+                <span class="info-value">{{ cliente.telefone }}</span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label">Plano</span>
+                <span class="info-value">{{ plano.nome }}</span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label">Pacote</span>
+                <span class="info-value">
+                    {% for s in servicos_pacote %}{{ s.nome }}{% if not loop.last %} + {% endif %}{% endfor %}
+                </span>
+            </div>
+            <div class="info-linha">
+                <span class="info-label">Duração</span>
+                <span class="info-value">{{ duracao_total }} minutos</span>
+            </div>
+        </div>
+
+        <!-- Indicador de etapas -->
+        <div class="steps-indicator mb-4">
+            <div class="step active" data-step="1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Dia</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Horário</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Profissional</div>
+            </div>
+        </div>
+
+        <form action="/meu-plano/agendar" method="POST" id="form-agendamento-plano">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="data" id="data_selecionada" value="">
+            <input type="hidden" name="horario" id="horario_selecionado" value="">
+            <input type="hidden" name="profissional_id" id="profissional_id" value="">
+            <input type="hidden" name="observacoes" id="observacoes" value="">
+
+            <!-- ============================================ -->
+            <!-- ETAPA 1: DIA (calendário)
+            <!-- ============================================ -->
+            <div class="step-content" id="step-1">
+                <h3 class="step-title">Escolha o dia</h3>
+                <p style="color:#999; font-size:13px; margin-bottom:15px;">
+                    Dias permitidos: <strong>{{ dias_permitidos_nomes | join(' • ') }}</strong>
+                </p>
+                <div class="calendario" id="calendario">
+                    <!-- Calendário gerado via JavaScript -->
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn-gold w-100" onclick="nextStep(2)" id="btn-next-1" disabled>
+                        Continuar <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- ETAPA 2: HORÁRIO
+            <!-- ============================================ -->
+            <div class="step-content d-none" id="step-2">
+                <h3 class="step-title">Escolha o horário</h3>
+                <p style="color:#999; font-size:13px; margin-bottom:15px;">
+                    Data selecionada: <strong id="data_exibicao"></strong>
+                </p>
+                <div class="horarios-grid" id="horarios-grid">
+                    <!-- Horários carregados via JavaScript -->
+                </div>
+                <div class="legenda-horarios mt-3">
+                    <span class="legenda-item"><span class="dot dot-disponivel"></span> Disponível</span>
+                    <span class="legenda-item"><span class="dot dot-indisponivel"></span> Indisponível</span>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn-outline-gold" onclick="prevStep(1)">
+                        <i class="bi bi-arrow-left me-2"></i>Voltar
+                    </button>
+                    <button type="button" class="btn-gold flex-grow-1" onclick="nextStep(3)" id="btn-next-2" disabled>
+                        Continuar <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- ETAPA 3: PROFISSIONAL
+            <!-- ============================================ -->
+            <div class="step-content d-none" id="step-3">
+                <h3 class="step-title">Escolha o profissional</h3>
+                <p style="color:#999; font-size:13px; margin-bottom:15px;">
+                    Horário: <strong id="horario_exibicao"></strong>
+                </p>
+                <div class="row g-3" id="profissionais-grid">
+                    <!-- Profissionais carregados via JavaScript -->
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn-outline-gold" onclick="prevStep(2)">
+                        <i class="bi bi-arrow-left me-2"></i>Voltar
+                    </button>
+                    <button type="submit" class="btn-gold flex-grow-1" id="btn-submit" disabled>
+                        <i class="bi bi-check-circle me-2"></i>Confirmar Agendamento
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Dados do plano para JavaScript -->
+<div id="dados-plano" style="display:none;"
+     data-dias="{{ dias_permitidos | tojson }}"
+     data-duracao="{{ duracao_total }}">
+</div>
+
+<script>
+// ============================================
+// VARIÁVEIS GLOBAIS
+// ============================================
+let etapaAtual = 1;
+let dataSelecionada = '';
+let horarioSelecionado = '';
+let profissionalSelecionado = '';
+const dadosPlano = document.getElementById('dados-plano');
+const duracaoTotal = parseInt(dadosPlano.dataset.duracao);
+const diasPermitidos = JSON.parse(dadosPlano.dataset.dias);
+
+// ============================================
+// NAVEGAÇÃO ENTRE ETAPAS
+// ============================================
+
+function nextStep(etapaDestino) {
+    // Valida etapa ATUAL = 1 (Dia)
+    if (etapaAtual === 1) {
+        if (!dataSelecionada) {
+            alert('Selecione uma data.');
+            return;
+        }
+    }
+
+    // Valida etapa ATUAL = 2 (Horário)
+    if (etapaAtual === 2) {
+        if (!horarioSelecionado) {
+            alert('Selecione um horário.');
+            return;
+        }
+    }
+
+    // Valida etapa ATUAL = 3 (Profissional)
+    if (etapaAtual === 3) {
+        if (!profissionalSelecionado) {
+            alert('Selecione um profissional.');
+            return;
+        }
+    }
+
+    etapaAtual = etapaDestino;
+    atualizarEtapas();
+
+    // Ao chegar na etapa de horário (2), carrega os horários
+    if (etapaDestino === 2) {
+        document.getElementById('data_exibicao').textContent = dataSelecionada;
+        carregarHorarios(dataSelecionada);
+    }
+}
+
+function prevStep(etapa) {
+    etapaAtual = etapa;
+    atualizarEtapas();
+}
+
+function atualizarEtapas() {
+    for (let i = 1; i <= 3; i++) {
+        document.getElementById('step-' + i).classList.add('d-none');
+    }
+    document.getElementById('step-' + etapaAtual).classList.remove('d-none');
+
+    document.querySelectorAll('.step').forEach((el, idx) => {
+        const num = idx + 1;
+        el.classList.toggle('active', num <= etapaAtual);
+        el.classList.toggle('done', num < etapaAtual);
+    });
+}
+
+// ============================================
+// CALENDÁRIO (apenas dias permitidos)
+// ============================================
+
+function gerarCalendario() {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = hoje.getMonth();
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+    const primeiroDia = new Date(ano, mes, 1).getDay();
+
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+    let html = '<div class="calendario-header">';
+    html += '<span class="calendario-mes">' + meses[mes] + ' ' + ano + '</span>';
+    html += '</div>';
+    html += '<div class="calendario-dias-semana">';
+    diasSemana.forEach(d => { html += '<div class="dia-semana">' + d + '</div>'; });
+    html += '</div>';
+    html += '<div class="calendario-grid">';
+
+    // Dias vazios antes do primeiro dia
+    for (let i = 0; i < primeiroDia; i++) {
+        html += '<div class="calendario-dia vazio"></div>';
+    }
+
+    // Dias do mês
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+        const dataStr = ano + '-' + String(mes + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+        const isHoje = dia === hoje.getDate();
+        const isSelecionado = dataStr === dataSelecionada;
+        const isPassado = dataStr < hoje.toISOString().split('T')[0];
+
+        // Verifica se o dia da semana é permitido pelo plano
+        // getDay() retorna 0=Domingo, 1=Segunda, ..., 6=Sábado
+        // isoweekday: 1=Segunda, ..., 7=Domingo
+        const jsDay = new Date(ano, mes, dia).getDay();
+        const isoweekday = jsDay === 0 ? 7 : jsDay;
+        const isDiaPermitido = diasPermitidos.includes(isoweekday);
+
+        let classes = 'calendario-dia';
+        if (isHoje) classes += ' hoje';
+        if (isSelecionado) classes += ' selecionado';
+        if (isPassado) classes += ' indisponivel';
+        if (!isDiaPermitido) classes += ' indisponivel';
+
+        const podeClicar = !isPassado && isDiaPermitido;
+        const onclick = podeClicar ? "onclick=\"selecionarData('" + dataStr + "', this)\"" : '';
+
+        html += '<div class="' + classes + '" ' + onclick + ' style="' + (isPassado || !isDiaPermitido ? 'pointer-events:none;opacity:0.3;' : '') + '">';
+        html += dia;
+        html += '</div>';
+    }
+
+    html += '</div>';
+    document.getElementById('calendario').innerHTML = html;
+}
+
+function selecionarData(data, el) {
+    dataSelecionada = data;
+    document.getElementById('data_selecionada').value = data;
+    document.querySelectorAll('.calendario-dia').forEach(d => d.classList.remove('selecionado'));
+    el.classList.add('selecionado');
+
+    // Habilita o botão "Continuar"
+    document.getElementById('btn-next-1').disabled = false;
+}
+
+// ============================================
+// HORÁRIOS
+// ============================================
+
+function carregarHorarios(data) {
+    fetch('/api/horarios-plano?data=' + data + '&duracao=' + duracaoTotal)
+        .then(res => res.json())
+        .then(dados => {
+            const grid = document.getElementById('horarios-grid');
+            let html = '';
+
+            dados.horarios.forEach(h => {
+                let classes = 'horario-card';
+                let onclick = '';
+
+                if (h.disponivel) {
+                    classes += ' disponivel';
+                    onclick = 'selecionarHorario(\'' + h.horario + '\', this)';
+                } else {
+                    classes += ' indisponivel';
+                }
+
+                html += '<div class="' + classes + '" onclick="' + onclick + '">' + h.horario + '</div>';
+            });
+
+            grid.innerHTML = html;
+        });
+}
+
+function selecionarHorario(horario, el) {
+    horarioSelecionado = horario;
+    document.getElementById('horario_selecionado').value = horario;
+    document.getElementById('horario_exibicao').textContent = horario;
+    document.querySelectorAll('.horario-card').forEach(h => h.classList.remove('selecionado'));
+    el.classList.add('selecionado');
+
+    // Carrega profissionais disponíveis
+    carregarProfissionais(dataSelecionada, horario);
+
+    // Habilita o botão "Continuar"
+    document.getElementById('btn-next-2').disabled = false;
+}
+
+// ============================================
+// PROFISSIONAIS
+// ============================================
+
+function carregarProfissionais(data, horario) {
+    fetch('/api/profissionais-disponiveis?data=' + data + '&horario=' + horario + '&duracao=' + duracaoTotal)
+        .then(res => res.json())
+        .then(dados => {
+            const grid = document.getElementById('profissionais-grid');
+            let html = '';
+
+            if (dados.profissionais.length === 0) {
+                html = '<div class="col-12"><div class="admin-empty"><i class="bi bi-person-x"></i><p>Nenhum profissional disponível neste horário.</p></div></div>';
+            } else {
+                dados.profissionais.forEach(prof => {
+                    html += '<div class="col-md-6">';
+                    html += '<div class="profissional-card" onclick="selectProfissional(' + prof.id + ', this)">';
+                    html += '<div class="profissional-foto">';
+                    if (prof.foto) {
+                        html += '<img src="/static/imagens/' + prof.foto + '" alt="' + prof.nome + '">';
+                    } else {
+                        html += '<div class="profissional-foto-placeholder">👤</div>';
+                    }
+                    html += '</div>';
+                    html += '<div class="profissional-info">';
+                    html += '<h4>' + prof.nome + '</h4>';
+                    html += '<p>Profissional</p>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                });
+            }
+
+            grid.innerHTML = html;
+        });
+}
+
+function selectProfissional(id, el) {
+    profissionalSelecionado = id;
+    document.getElementById('profissional_id').value = id;
+    document.querySelectorAll('.profissional-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+
+    // Habilita o botão "Confirmar"
+    document.getElementById('btn-submit').disabled = false;
+}
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+gerarCalendario();
+</script>
+</body>
+</html>

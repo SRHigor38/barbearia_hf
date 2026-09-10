@@ -1,0 +1,145 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-file-earmark-bar-graph text-gold me-2"></i>Relatório Financeiro</h2>
+        <p>Resumo e detalhamento das movimentações do período</p>
+    </div>
+    <a href="/admin/financeiro/pdf?periodo={{ periodo }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}" class="btn-gold">
+        <i class="bi bi-file-earmark-pdf me-2"></i>Gerar Relatório PDF
+    </a>
+</div>
+
+<!-- Filtro por período -->
+<div class="admin-card mb-4">
+    <form method="GET" action="/admin/relatorios/financeiro" class="row g-3 align-items-end">
+        <div class="col-md-2">
+            <label>Período</label>
+            <select class="form-control" name="periodo">
+                <option value="mes" {% if periodo == 'mes' %}selected{% endif %}>Este mês</option>
+                <option value="hoje" {% if periodo == 'hoje' %}selected{% endif %}>Hoje</option>
+                <option value="semana" {% if periodo == 'semana' %}selected{% endif %}>Esta semana</option>
+                <option value="mes_passado" {% if periodo == 'mes_passado' %}selected{% endif %}>Mês passado</option>
+                <option value="personalizado" {% if periodo == 'personalizado' %}selected{% endif %}>Personalizado</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Data Inicial</label>
+            <input type="date" class="form-control" name="data_inicio" value="{{ data_inicio }}">
+        </div>
+        <div class="col-md-3">
+            <label>Data Final</label>
+            <input type="date" class="form-control" name="data_fim" value="{{ data_fim }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn-gold w-100">
+                <i class="bi bi-search me-2"></i>Pesquisar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Resumo -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="admin-card text-center">
+            <div class="card-title">Faturamento Bruto</div>
+            <div class="card-value" style="color:#28a745;">{{ formatar_moeda(indicadores.receita_bruta) }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="admin-card text-center">
+            <div class="card-title">Total de Despesas</div>
+            <div class="card-value" style="color:#dc3545;">{{ formatar_moeda(indicadores.despesas_total) }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="admin-card text-center">
+            <div class="card-title">Taxas de Maquininha</div>
+            <div class="card-value" style="color:#ffc107;">{{ formatar_moeda(indicadores.despesas_taxas) }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="admin-card text-center">
+            <div class="card-title">Lucro Líquido</div>
+            <div class="card-value gold">{{ formatar_moeda(indicadores.lucro_liquido) }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Receitas -->
+{% set receitas = indicadores.movimentacoes | selectattr('tipo', 'equalto', 'receita') | list %}
+<!-- Despesas -->
+{% set despesas = indicadores.movimentacoes | selectattr('tipo', 'equalto', 'despesa') | list %}
+
+<!-- DETALHAMENTO DE RECEITAS -->
+<div class="admin-card mb-4">
+    <h3 style="color:#fff;font-weight:700;font-size:18px;margin-bottom:20px;">
+        <i class="bi bi-arrow-up-circle text-gold me-2" style="color:#28a745;"></i>Receitas ({{ receitas|length }})
+    </h3>
+    {% if receitas %}
+    <div class="table-responsive-custom">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Descrição</th>
+                    <th>Origem</th>
+                    <th>Forma Pgto.</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in receitas %}
+                <tr>
+                    <td>{{ r.data }}</td>
+                    <td><strong>{{ r.descricao[:60] }}</strong></td>
+                    <td>{{ r.origem }}</td>
+                    <td>{{ nome_forma_pagamento(r.forma_pagamento) }}</td>
+                    <td style="color:#28a745;font-weight:600;">+ {{ formatar_moeda(r.valor) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="admin-empty"><p>Nenhuma receita no período.</p></div>
+    {% endif %}
+</div>
+
+<!-- DETALHAMENTO DE DESPESAS -->
+<div class="admin-card">
+    <h3 style="color:#fff;font-weight:700;font-size:18px;margin-bottom:20px;">
+        <i class="bi bi-arrow-down-circle me-2" style="color:#dc3545;"></i>Despesas ({{ despesas|length }})
+    </h3>
+    {% if despesas %}
+    <div class="table-responsive-custom">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Descrição</th>
+                    <th>Categoria/Origem</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in despesas %}
+                <tr>
+                    <td>{{ d.data }}</td>
+                    <td><strong>{{ d.descricao[:60] }}</strong></td>
+                    <td>{{ d.origem }}</td>
+                    <td style="color:#dc3545;font-weight:600;">- {{ formatar_moeda(d.valor) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="admin-empty"><p>Nenhuma despesa no período.</p></div>
+    {% endif %}
+</div>
+
+{% endblock %}

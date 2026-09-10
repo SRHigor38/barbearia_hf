@@ -1,0 +1,114 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-stars text-gold me-2"></i>Planos Mensais</h2>
+        <p>Gerencie os planos dos clientes</p>
+    </div>
+    <a href="/admin/planos/novo">
+        <button class="btn-gold">
+            <i class="bi bi-person-plus me-2"></i>Cadastrar Cliente no Plano
+        </button>
+    </a>
+</div>
+
+<div class="admin-card">
+    {% if planos %}
+    <div class="table-responsive-custom">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Telefone</th>
+                    <th>Plano</th>
+                    <th>Benefícios</th>
+                    <th>Saldo</th>
+                    <th>Início</th>
+                    <th>Validade</th>
+                    <th>Dias</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plano in planos %}
+                <tr>
+                    <td><strong>{{ plano.cliente.nome }}</strong></td>
+                    <td>{{ plano.cliente.telefone }}</td>
+                    <td>{{ plano.nome }}</td>
+                    <td>
+                        {% for ben in plano.beneficios %}
+                            {% if ben.ilimitado %}
+                                <span class="badge bg-success" style="background:rgba(40,167,69,0.2); color:#28a745; font-size:11px; padding:3px 8px; border-radius:10px; margin:2px;">
+                                    {{ ben.servico.nome }}: ILIMITADO
+                                </span>
+                            {% else %}
+                                <span class="badge" style="background:rgba(212,175,55,0.1); color:#d4af37; font-size:11px; padding:3px 8px; border-radius:10px; margin:2px;">
+                                    {{ ben.servico.nome }}: {{ ben.quantidade }}
+                                </span>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for ben in plano.beneficios %}
+                            {% if not ben.ilimitado %}
+                                <div style="font-size:11px; color:#999;">
+                                    {{ ben.servico.nome }}: {{ ben.restante }}/{{ ben.quantidade }}
+                                </div>
+                            {% else %}
+                                <div style="font-size:11px; color:#28a745;">
+                                    {{ ben.servico.nome }}: ILIMITADO
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>{{ plano.data_inicio }}</td>
+                    <td>{{ plano.data_validade }}</td>
+                    <td>
+                        {% set dias_nomes = ['','Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
+                        {% for d in plano.dias_permitidos_lista %}{{ dias_nomes[d] }}{% if not loop.last %} • {% endif %}{% endfor %}
+                    </td>
+                    <td>
+                        {% if plano.status == 'ATIVO' %}
+                            <span style="color:#28a745;font-size:13px;"><i class="bi bi-check-circle me-1"></i>ATIVO</span>
+                        {% elif plano.status == 'EXPIRADO' %}
+                            <span style="color:#dc3545;font-size:13px;"><i class="bi bi-x-circle me-1"></i>EXPIRADO</span>
+                        {% elif plano.status == 'ESGOTADO' %}
+                            <span style="color:#ffc107;font-size:13px;"><i class="bi bi-exclamation-circle me-1"></i>ESGOTADO</span>
+                        {% else %}
+                            <span style="color:#dc3545;font-size:13px;"><i class="bi bi-slash-circle me-1"></i>CANCELADO</span>
+                        {% endif %}
+                    </td>
+                    <td class="acoes">
+                        <a href="/admin/planos/codigo/{{ plano.id }}">
+                            <button class="btn-edit"><i class="bi bi-key me-1"></i>Código</button>
+                        </a>
+                        <form method="POST" action="/admin/planos/renovar/{{ plano.id }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-success-custom" onclick="return confirm('Renovar plano?');">
+                                <i class="bi bi-arrow-repeat me-1"></i>Renovar
+                            </button>
+                        </form>
+                        <form method="POST" action="/admin/planos/cancelar/{{ plano.id }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-danger-custom" onclick="return confirm('Cancelar plano?');">
+                                <i class="bi bi-x-circle me-1"></i>Cancelar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="admin-empty">
+        <i class="bi bi-stars"></i>
+        <p>Nenhum plano cadastrado.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

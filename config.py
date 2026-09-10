@@ -6,7 +6,7 @@
 import os
 from dotenv import load_dotenv
 
-# Carrega as variáveis do arquivo .env
+# Carrega as variáveis do arquivo .env (apenas no ambiente local)
 load_dotenv()
 
 
@@ -19,11 +19,36 @@ class Config:
     # Chave secreta para assinar cookies, sessões e tokens CSRF
     SECRET_KEY = os.getenv("SECRET_KEY", "fallback-dev-key")
 
-    # Caminho do banco de dados SQLite
-    # "sqlite:///" + caminho absoluto para o arquivo .db
-    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "barbearia.db"
-    )
+    # ============================================
+    # BANCO DE DADOS
+    # ============================================
+    # Usa a variável de ambiente DATABASE_URL quando definida.
+    # Em desenvolvimento local, pode ser SQLite ou PostgreSQL local.
+    # Em produção, a plataforma de hospedagem fornece DATABASE_URL.
+    #
+    # Exemplos:
+    #   SQLite:     sqlite:///caminho/para/barbearia.db
+    #   PostgreSQL: postgresql://usuario:senha@host:5432/barbearia
+    #
+    # Se DATABASE_URL não estiver definida, usa SQLite local (desenvolvimento).
+    DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+    if DATABASE_URL:
+        # Normaliza a URL do PostgreSQL se necessário
+        if DATABASE_URL.startswith("postgres://"):
+            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        if DATABASE_URL.startswith("postgresql://") and "+psycopg2" not in DATABASE_URL:
+            # Garante o uso do driver psycopg2 (recomendado)
+            DATABASE_URL = DATABASE_URL.replace(
+                "postgresql://", "postgresql+psycopg2://", 1
+            )
+
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    else:
+        # Fallback: SQLite local (apenas desenvolvimento)
+        SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "barbearia.db"
+        )
 
     # Desativa o rastreamento de modificações do SQLAlchemy (economiza memória)
     SQLALCHEMY_TRACK_MODIFICATIONS = False

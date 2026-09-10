@@ -1,0 +1,179 @@
+{% extends "admin_base.html" %}
+
+{% block admin_content %}
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-cash-coin text-gold me-2"></i>Financeiro</h2>
+        <p>Controle de receitas, despesas e lucro da barbearia</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/admin/financeiro/pdf?periodo={{ periodo }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}" class="btn-gold">
+            <i class="bi bi-file-earmark-pdf me-2"></i>Gerar Relatório PDF
+        </a>
+        <a href="/admin/gastos" class="btn-outline-gold">
+            <i class="bi bi-plus-circle me-2"></i>Cadastrar Gasto
+        </a>
+    </div>
+</div>
+
+<!-- FILTRO POR PERÍODO -->
+<div class="admin-card mb-4">
+    <form method="GET" action="/admin/financeiro" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label>Período</label>
+            <select class="form-control" name="periodo">
+                <option value="hoje" {% if periodo == 'hoje' %}selected{% endif %}>Hoje</option>
+                <option value="semana" {% if periodo == 'semana' %}selected{% endif %}>Esta semana</option>
+                <option value="mes" {% if periodo == 'mes' %}selected{% endif %}>Este mês</option>
+                <option value="mes_passado" {% if periodo == 'mes_passado' %}selected{% endif %}>Mês passado</option>
+                <option value="personalizado" {% if periodo == 'personalizado' %}selected{% endif %}>Personalizado</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Data Inicial</label>
+            <input type="date" class="form-control" name="data_inicio" value="{{ data_inicio }}">
+        </div>
+        <div class="col-md-3">
+            <label>Data Final</label>
+            <input type="date" class="form-control" name="data_fim" value="{{ data_fim }}">
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn-gold w-100">
+                <i class="bi bi-funnel me-2"></i>Filtrar
+            </button>
+        </div>
+    </form>
+    <div class="mt-2" style="font-size:13px;color:#999;">
+        <i class="bi bi-info-circle me-1"></i>
+        Período atual: <strong class="text-gold">{{ data_inicio }} até {{ data_fim }}</strong>
+    </div>
+</div>
+<!-- CARDS DE INDICADORES -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(40,167,69,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-graph-up" style="color:#28a745;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Faturamento Bruto</div>
+                <div class="card-value" style="color:#28a745;">{{ formatar_moeda(indicadores.receita_bruta) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(220,53,69,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-arrow-down-circle" style="color:#dc3545;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Total de Despesas</div>
+                <div class="card-value" style="color:#dc3545;">{{ formatar_moeda(indicadores.despesas_total) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(255,193,7,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-credit-card" style="color:#ffc107;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Taxas de Maquininha</div>
+                <div class="card-value" style="color:#ffc107;">{{ formatar_moeda(indicadores.despesas_taxas) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="admin-card d-flex align-items-center">
+            <div style="width:55px;height:55px;background:rgba(212,175,55,0.1);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                <i class="bi bi-piggy-bank" style="color:#d4af37;"></i>
+            </div>
+            <div class="ms-3">
+                <div class="card-title">Lucro Líquido</div>
+                <div class="card-value gold">{{ formatar_moeda(indicadores.lucro_liquido) }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detalhes de despesas -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="admin-card">
+            <h3 style="color:#fff;font-size:15px;font-weight:700;margin:0;">
+                <i class="bi bi-receipt me-2" style="color:#dc3545;"></i>Despesas Manuais (Gastos)
+            </h3>
+            <div class="card-value" style="font-size:22px;color:#dc3545;margin-top:8px;">
+                {{ formatar_moeda(indicadores.despesas_gastos) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="admin-card">
+            <h3 style="color:#fff;font-size:15px;font-weight:700;margin:0;">
+                <i class="bi bi-check2-circle me-2" style="color:#28a745;"></i>Movimentações
+            </h3>
+            <div class="card-value" style="font-size:22px;color:#28a745;margin-top:8px;">
+                {{ indicadores.quantidade_receitas }} receitas / {{ indicadores.quantidade_despesas }} despesas
+            </div>
+        </div>
+    </div>
+</div>
+<!-- LISTA DE MOVIMENTAÇÕES -->
+<div class="admin-card">
+    <h3 style="color:#ffffff;font-weight:700;font-size:18px;margin-bottom:20px;">
+        <i class="bi bi-list-ul text-gold me-2"></i>Movimentações do Período
+    </h3>
+
+    {% if indicadores.movimentacoes %}
+    <div class="table-responsive-custom">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Tipo</th>
+                    <th>Descrição</th>
+                    <th>Categoria/Origem</th>
+                    <th>Forma Pgto.</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in indicadores.movimentacoes %}
+                <tr>
+                    <td>{{ m.data }}</td>
+                    <td>
+                        {% if m.tipo == 'receita' %}
+                            <span style="color:#28a745;font-weight:600;"><i class="bi bi-arrow-up-circle me-1"></i>Receita</span>
+                        {% else %}
+                            <span style="color:#dc3545;font-weight:600;"><i class="bi bi-arrow-down-circle me-1"></i>Despesa</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ m.descricao[:60] }}</strong></td>
+                    <td>{{ m.origem }}</td>
+                    <td>{{ nome_forma_pagamento(m.forma_pagamento) }}</td>
+                    <td>
+                        {% if m.tipo == 'receita' %}
+                            <span style="color:#28a745;">+ {{ formatar_moeda(m.valor) }}</span>
+                        {% else %}
+                            <span style="color:#dc3545;">- {{ formatar_moeda(m.valor) }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="admin-empty">
+        <i class="bi bi-inbox"></i>
+        <p>Nenhuma movimentação no período selecionado.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

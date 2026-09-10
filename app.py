@@ -5,16 +5,34 @@
 # Ele importa os modelos, registra os blueprints e inicia o servidor.
 
 import os
+import sys
+
+# Faz o console aceitar caracteres UTF-8 (ex: emojis em prints)
+# Essencial no Windows (cp1252) e seguro em Linux/produção.
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 from flask import Flask, redirect, url_for, flash
 from flask_wtf.csrf import CSRFProtect
 from flask_bcrypt import Bcrypt
 from config import Config
 from models import db
+from services.financeiro_service import formatar_moeda, aplicar_migracoes
 from models.servico import Servico
 from models.admin import Admin
 from models.profissional import Profissional
 from models.cliente import Cliente
 from models.bloqueio import Bloqueio
+from models.plano import Plano
+from models.plano_tipo import PlanoTipo
+from models.plano_tipo_beneficio import PlanoTipoBeneficio
+from models.plano_beneficio import PlanoBeneficio
+from models.agendamento_servico import AgendamentoServico
+from models.financeiro import Financeiro
+from models.despesa import Despesa
 from routes import main_bp, admin_bp
 from services.barbearia_service import criar_banco_e_popular
 
@@ -26,6 +44,9 @@ def create_app():
     """
     # Cria a aplicação Flask
     app = Flask(__name__)
+
+    # Registra o filtro global de formatação de moeda para todos os templates
+    app.jinja_env.filters["formatar_moeda"] = formatar_moeda
 
     # Carrega as configurações da classe Config
     app.config.from_object(Config)
@@ -78,6 +99,9 @@ def create_app():
         # Cria as tabelas e insere serviços iniciais
         criar_banco_e_popular()
 
+        # Aplica migrações seguras (adiciona colunas novas sem apagar dados)
+        aplicar_migracoes()
+
         # Cria admin padrão se não existir
         if Admin.query.first() is None:
             admin = Admin(
@@ -98,6 +122,6 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     # debug=True apenas em desenvolvimento
-    # Para produção, defina FLASK_ENV=production no .env
+    # Para produção, defina FLASK_DEBUG=false no .env
     debug_mode = os.getenv("FLASK_DEBUG", "true").lower() == "true"
     app.run(debug=debug_mode)
