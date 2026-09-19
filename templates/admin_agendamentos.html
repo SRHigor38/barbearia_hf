@@ -102,11 +102,12 @@
                                 <i class="bi bi-cash-stack me-1"></i>Pagamento
                             </button>
                         </a>
-                        <a href="/admin/agendamentos/excluir/{{ agendamento.id }}">
-                            <button class="btn-danger-custom">
+                        <form method="POST" action="/admin/agendamentos/excluir/{{ agendamento.id }}" style="display:inline;" onsubmit="return confirm('Excluir agendamento?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn-danger-custom" type="submit">
                                 <i class="bi bi-trash me-1"></i>Excluir
                             </button>
-                        </a>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}

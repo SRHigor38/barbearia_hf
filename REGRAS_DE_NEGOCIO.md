@@ -1,5 +1,9 @@
 # 📋 Reglas de Negocio — HF Barbearia
 
+> **Última auditoría:** 19/09/2026 — POST+CSRF en mutaciones, upload 2MB + magic bytes,
+> valor de pago validado antes de persistir, exclusión de servicio bloqueada si está en uso,
+> exclusión de agendamiento devuelve beneficios del plan. Sin cambios en cálculos financieros.
+
 Documento con las reglas de negocio implementadas y verificadas en el sistema.
 
 ---
@@ -27,6 +31,11 @@ Documento con las reglas de negocio implementadas y verificadas en el sistema.
 - Servicio existente.
 - Sin bloqueo manual.
 - Sin conflicto de horario por profesional.
+
+### Exclusões com integridade
+- Excluir serviço em uso (agendamiento, paquete, catálogo o beneficios de plan) queda **BLOQUEADO**.
+- Excluir agendamiento de plan **DEVUELVE los beneficios** consumidos antes de remover.
+- Excluir agendamiento normal remove solo su lanzamiento financiero (sin duplicar ni dejar órfão).
 
 ---
 
@@ -131,7 +140,8 @@ Documento con las reglas de negocio implementadas y verificadas en el sistema.
 ## 7. Seguridad
 
 - Contraseñas con **bcrypt** (nunca texto plano).
-- **CSRF** activo en todos los formularios.
+- **CSRF** activo en todos los formularios (mutaciones solo vía POST: excluir, alternar, cancelar/renovar).
+- Upload validado por extensión + magic bytes, nombre UUID, límite 2MB (413 tratado).
 - Rutas administrativas protegidas con `login_necessario()`.
 - No existe enlace público de administración en la Home.
 - El cliente solo accede a su propio plan (titularidad por sesión).

@@ -54,18 +54,20 @@
                     <td>{{ prof.qtd_agendamentos }}</td>
                     <td class="acoes">
                         <a href="/admin/profissionais/editar/{{ prof.id }}">
-                            <button class="btn-edit"><i class="bi bi-pencil me-1"></i>Editar</button>
+                            <button class="btn-edit" type="button"><i class="bi bi-pencil me-1"></i>Editar</button>
                         </a>
-                        <a href="/admin/profissionais/alternar/{{ prof.id }}" onclick="return confirm('Confirmar alteração de status?');">
+                        <form method="POST" action="/admin/profissionais/alternar/{{ prof.id }}" style="display:inline;" onsubmit="return confirm('Confirmar alteração de status?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             {% if prof.ativo %}
-                                <button class="btn-danger-custom"><i class="bi bi-pause-circle me-1"></i>Desativar</button>
+                                <button class="btn-danger-custom" type="submit"><i class="bi bi-pause-circle me-1"></i>Desativar</button>
                             {% else %}
-                                <button class="btn-success-custom"><i class="bi bi-play-circle me-1"></i>Ativar</button>
+                                <button class="btn-success-custom" type="submit"><i class="bi bi-play-circle me-1"></i>Ativar</button>
                             {% endif %}
-                        </a>
-                        <a href="/admin/profissionais/excluir/{{ prof.id }}" onclick="return confirm('Excluir profissional? Ação só permite se não houver agendamentos.');">
-                            <button class="btn-danger-custom"><i class="bi bi-trash me-1"></i>Excluir</button>
-                        </a>
+                        </form>
+                        <form method="POST" action="/admin/profissionais/excluir/{{ prof.id }}" style="display:inline;" onsubmit="return confirm('Excluir profissional? Ação só permite se não houver agendamentos.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn-danger-custom" type="submit"><i class="bi bi-trash me-1"></i>Excluir</button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}

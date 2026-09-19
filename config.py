@@ -17,7 +17,17 @@ class Config:
     """
 
     # Chave secreta para assinar cookies, sessões e tokens CSRF
+    # Em produção (Render) vem de variável de ambiente com generateValue.
+    # O fallback existe apenas para desenvolvimento local.
     SECRET_KEY = os.getenv("SECRET_KEY", "fallback-dev-key")
+
+    # Cookies de sessão endurecidos (produção exige HTTPS no Render)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = os.getenv("APP_ENV", "development") == "production"
+
+    # Limite global de upload (fotos de profissionais: 2MB)
+    MAX_CONTENT_LENGTH = 2 * 1024 * 1024
 
     # ============================================
     # BANCO DE DADOS

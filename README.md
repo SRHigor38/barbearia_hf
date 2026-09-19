@@ -2,6 +2,11 @@
 
 Sistema web profissional para gerenciamento completo de barbearia: agendamento online, planos mensais, controle financeiro, relatórios e exportação PDF.
 
+> **Auditoria 19/09/2026:** mutações só via POST+CSRF, upload 2MB com magic bytes + erro 413 tratado,
+> valor do pagamento validado antes de persistir, exclusão de serviço bloqueada se em uso,
+> exclusão de agendamento com plano devolve benefícios. Cálculos financeiros inalterados
+> (fonte única `calcular_financeiro()`; planos sempre em REAIS).
+
 ---
 
 ## ✨ Funcionalidades
@@ -48,7 +53,7 @@ Sistema web profissional para gerenciamento completo de barbearia: agendamento o
 
 | Tecnología | Finalidad |
 |------------|-----------|
-| **Python 3.13** | Lenguaje principal |
+| **Python 3.13** | Lenguaje principal (3.13.6 en producción) |
 | **Flask 3.1** | Framework web |
 | **SQLAlchemy 2.0** | ORM |
 | **SQLite** | Banco local (desarrollo) |
@@ -72,7 +77,7 @@ barbearia_hf/
 ├── config.py                     # Configuración (DATABASE_URL, SECRET_KEY)
 ├── requirements.txt              # Dependencias
 ├── Procfile                      # gunicorn app:app (Render)
-├── runtime.txt                   # python-3.13.3
+├── runtime.txt                   # python-3.13.6
 ├── render.yaml                   # Deploy Render + PostgreSQL
 ├── .env.example                  # Plantilla de variables de entorno
 │
@@ -107,7 +112,9 @@ barbearia_hf/
 ├── teste_total.py                # Suite 45 tests (banco temporal)
 ├── teste_financeiro.py           # Suite 29 tests financieros
 ├── teste_planos.py               # Suite 19 tests de planos
-└── teste_dias_semana.py          # Test de días semanales
+├── teste_dias_semana.py          # Test de días semanales
+├── teste_ajustes_exibicao.py     # Suite exibição (telefone/nome/pagamento)
+└── teste_correcao_planos.py      # Suite correção monetária dos planos (REAIS)
 ```
 ---
 
@@ -183,10 +190,11 @@ python teste_dias_semana.py    # dias de la semana
 ## 🔒 Seguridad
 
 - Contraseñas almacenadas con **bcrypt** (nunca texto plano)
-- **CSRF** con Flask-WTF en todos los formularios
+- **CSRF** con Flask-WTF en todos los formularios (incluyendo excluir/alternar/cancelar/renovar vía POST)
+- Ações destrutivas (excluir, alternar status, cancelar/renovar plano) solo vía **POST + CSRF** (nunca GET)
 - Sesión protegida con `SECRET_KEY` (variable de ambiente)
 - Rotas administrativas protegidas con `login_necessario()`
-- Subida de fotos validada (extensión permitida, nombre seguro UUID)
+- Subida de fotos validada (extensión permitida + magic bytes, nombre seguro UUID, límite 2MB via MAX_CONTENT_LENGTH)
 - `.env` nunca se versiona (está en `.gitignore`)
 
 ---

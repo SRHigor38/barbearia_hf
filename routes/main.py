@@ -15,11 +15,10 @@ from services.barbearia_service import (
     contar_servicos,
     servico_existe_no_banco,
     buscar_servico_por_nome,
-    buscar_servico_por_id,
     validar_telefone,
     validar_data,
     validar_horario,
-    verificar_conflito_horario,
+    horario_dentro_funcionamento,
     verificar_conflito_profissional,
     listar_horarios_disponiveis,
     listar_profissionais_disponiveis,
@@ -34,13 +33,9 @@ from services.barbearia_service import (
     buscar_cliente_por_telefone,
     buscar_plano_por_cliente,
     buscar_plano_por_id,
-    buscar_plano_por_codigo,
-    verificar_plano_valido,
     dia_permitido_plano,
     data_dentro_validade,
     atualizar_status_plano,
-    listar_planos_tipos,
-    buscar_plano_tipo_por_id,
 )
 
 
@@ -102,24 +97,24 @@ def agendamento():
         )
 
     # POST: processa o agendamento normal
-    nome = request.form["nome"]
-    telefone = request.form["telefone"]
-    data = request.form["data"]
-    horario = request.form["horario"]
-    nome_servico = request.form["servico"]
+    nome = request.form.get("nome", "")
+    telefone = request.form.get("telefone", "")
+    data = request.form.get("data", "")
+    horario = request.form.get("horario", "")
+    nome_servico = request.form.get("servico", "")
     profissional_id = request.form.get("profissional_id", "")
     observacoes = request.form.get("observacoes", "")
 
     # Validações
-    if not servico_existe_no_banco(nome_servico):
+    if not nome_servico or not servico_existe_no_banco(nome_servico):
         flash("Serviço inválido.", "error")
         return redirect(url_for("main.inicio"))
 
-    if not nome.strip():
+    if not nome or not nome.strip():
         flash("O nome é obrigatório.", "error")
         return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
 
-    if not validar_telefone(telefone):
+    if not telefone or not validar_telefone(telefone):
         flash("Telefone inválido. Use o formato com DDD (ex: 11999998888 ou (11) 99999-8888).", "error")
         return redirect(url_for("main.agendamento") + f"?servico={nome_servico}")
 
@@ -422,10 +417,11 @@ def api_horarios_plano():
     considerando a duração total do pacote e todos os profissionais.
     Um horário está disponível se PELO MENOS UM profissional ativo estiver livre.
     """
-    from services.barbearia_service import horario_dentro_funcionamento
-
     data = request.args.get("data", "")
-    duracao = int(request.args.get("duracao", "40"))
+    try:
+        duracao = int(request.args.get("duracao", "40"))
+    except (TypeError, ValueError):
+        duracao = 40
 
     # Horários segundo o dia da semana
     try:
@@ -472,7 +468,10 @@ def api_profissionais_disponiveis():
     """
     data = request.args.get("data", "")
     horario = request.args.get("horario", "")
-    duracao = int(request.args.get("duracao", "40"))
+    try:
+        duracao = int(request.args.get("duracao", "40"))
+    except (TypeError, ValueError):
+        duracao = 40
 
     profissionais = listar_profissionais_disponiveis(data, horario, duracao)
 

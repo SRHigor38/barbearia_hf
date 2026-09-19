@@ -178,8 +178,10 @@ Flask (create_app)
 |------|-------------|
 | `/admin/` | Dashboard |
 | `/admin/agendamientos` | Lista de agendamientos |
+| `/admin/agendamientos/excluir/<id>` | POST — Excluir agendamento (devolve benefício + remove financeiro) |
 | `/admin/agendamientos/pagamento/<id>` | Registrar/alterar pago |
 | `/admin/servicos` | CRUD servicios |
+| `/admin/servicos/excluir/<id>` | POST — Excluir servicio (bloqueado si está en uso) |
 | `/admin/profesionales` | CRUD profesionales |
 | `/admin/planos` | Planos de clientes |
 | `/admin/financeiro` | Panel financiero con filtros |

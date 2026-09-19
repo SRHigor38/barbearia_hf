@@ -52,3 +52,8 @@ dash_result.txt
 .idea/
 *.swp
 *.swo
+# Arquivos temporários criados por IAs anteriores - LIMPEZA
+_*.txt
+_*.py
+*_backup*.db
+_run_all_tests.py

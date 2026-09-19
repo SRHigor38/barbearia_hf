@@ -3,16 +3,22 @@
 # ============================================
 # Rotas protegidas por login. Acessíveis apenas por administradores.
 
+import os
+import uuid
+
 from flask import (
     render_template, request, redirect, url_for, flash, session, current_app, send_file,
 )
+from werkzeug.utils import secure_filename
 from models import db
 from models.servico import Servico
 from models.agendamento import Agendamento
 from models.admin import Admin
-from models.plano import Plano
 from models.despesa import Despesa
 from models.financeiro import Financeiro
+from models.agendamento_servico import AgendamentoServico
+from models.plano_tipo_beneficio import PlanoTipoBeneficio
+from models.plano_beneficio import PlanoBeneficio
 from routes import admin_bp
 from services.barbearia_service import (
     contar_servicos,
@@ -20,11 +26,20 @@ from services.barbearia_service import (
     listar_planos_tipos,
     buscar_plano_tipo_por_id,
     buscar_plano_por_cliente,
+    buscar_plano_por_id,
     criar_plano,
-    renovar_plano as renovar_plano_service,
-    cancelar_plano as cancelar_plano_service,
+    criar_cliente,
+    listar_planos,
+    listar_todos_profissionais,
+    contar_agendamentos_profissional,
+    buscar_profissional_por_id,
+    criar_profissional,
+    atualizar_profissional,
+    excluir_profissional as servico_excluir,
+    renovar_plano as renovar_plano_svc,
+    cancelar_plano as cancelar_plano_svc,
+    devolver_beneficios,
     atualizar_status_plano,
-    listar_clientes,
 )
 from services.financeiro_service import (
     calcular_financeiro, periodo_para_datas, formatar_moeda,
@@ -229,8 +244,6 @@ def listar_agendamentos():
     if check:
         return check
 
-    from services.barbearia_service import listar_todos_profissionais
-
     # Filtro por profissional
     filtro_profissional = request.args.get("profissional_id", "")
 
@@ -254,23 +267,30 @@ def listar_agendamentos():
     )
 
 
-@admin_bp.route("/agendamentos/excluir/<int:agendamento_id>")
+@admin_bp.route("/agendamentos/excluir/<int:agendamento_id>", methods=["POST"])
 def excluir_agendamento(agendamento_id):
     """
     Exclui um agendamento pelo ID.
-    Também remove o registro financeiro associado.
+    - Devolve benefícios do plano (se agendamento com plano).
+    - Remove o registro financeiro associado.
+    POST + CSRF: mutação nunca via GET.
     """
     check = login_necessario()
     if check:
         return check
-
-    from models.financeiro import Financeiro
 
     agendamento = Agendamento.query.get(agendamento_id)
 
     if agendamento is None:
         flash("Agendamento não encontrado.", "error")
     else:
+        # Se o agendamento usou plano, devolve os benefícios consumidos
+        # (somente finitos; ilimitados nunca foram decrementados).
+        if agendamento.plano_id:
+            if agendamento.servicos_relacionados:
+                servico_ids = [r.servico_id for r in agendamento.servicos_relacionados]
+                devolver_beneficios(agendamento.plano_id, servico_ids)
+
         # Remove o registro financeiro associado (se existir)
         financeiro = Financeiro.query.filter_by(agendamento_id=agendamento_id).first()
         if financeiro:
@@ -301,9 +321,13 @@ def listar_servicos():
         return check
 
     if request.method == "POST":
-        nome = request.form["nome"].strip()
-        preco = request.form["preco"]
-        tempo = request.form["tempo"]
+        try:
+            nome = request.form.get("nome", "").strip()
+            preco = request.form.get("preco", "")
+            tempo = request.form.get("tempo", "")
+        except Exception:
+            flash("Dados inválidos.", "error")
+            return redirect(url_for("admin.listar_servicos"))
         servico_id = request.form.get("servico_id")
 
         # Validação básica
@@ -392,26 +416,46 @@ def salvar_foto_profissional(arquivo):
     Valida e salva a foto do profissional de forma segura.
     Retorna o nome do arquivo salvo ou None se inválido/ausente.
     """
-    import os
-    import uuid
-
     if not arquivo or arquivo.filename == "":
         return None
 
+    nome_limpo = secure_filename(arquivo.filename)
+
     # Valida extensão
-    if not extensao_permitida(arquivo.filename):
+    if not extensao_permitida(nome_limpo):
         flash("Formato de imagem não permitido (use png, jpg, jpeg, gif, webp).", "error")
         return None
 
+    # Valida assinatura real do arquivo (magic bytes) — não confia só na extensão.
+    # Lê os primeiros bytes e depois volta o cursor para salvar o arquivo completo.
+    try:
+        cabecalho = arquivo.read(12)
+        arquivo.seek(0)
+    except Exception:
+        flash("Não foi possível ler a imagem enviada.", "error")
+        return None
+
+    assinaturas_validas = (
+        b"\x89PNG",          # PNG
+        b"\xff\xd8\xff",     # JPEG
+        b"GIF87a", b"GIF89a",  # GIF
+        b"RIFF",             # WEBP (RIFF....WEBP)
+    )
+    eh_imagem = cabecalho.startswith(assinaturas_validas)
+    eh_webp = cabecalho.startswith(b"RIFF") and b"WEBP" in cabecalho
+    if not (eh_imagem and (not cabecalho.startswith(b"RIFF") or eh_webp)):
+        flash("Arquivo inválido: o conteúdo não corresponde a uma imagem.", "error")
+        return None
+
     # Gera nome seguro e único para evitar sobrescrita
-    ext = arquivo.filename.rsplit(".", 1)[1].lower()
+    ext = nome_limpo.rsplit(".", 1)[1].lower()
     nome_arquivo = f"profissional_{uuid.uuid4().hex}.{ext}"
 
     # Cria diretório se não existir
     pasta = os.path.join(current_app.root_path, "static", "imagens")
     os.makedirs(pasta, exist_ok=True)
 
-    # Salva o arquivo
+    # Salva o arquivo (MAX_CONTENT_LENGTH no config já limita a 2MB)
     arquivo.save(os.path.join(pasta, nome_arquivo))
     return nome_arquivo
 
@@ -424,11 +468,6 @@ def listar_profissionais():
     check = login_necessario()
     if check:
         return check
-
-    from services.barbearia_service import (
-        listar_todos_profissionais,
-        contar_agendamentos_profissional,
-    )
 
     profissionais = listar_todos_profissionais()
     # Adiciona quantidade de agendamentos para cada profissional
@@ -448,11 +487,8 @@ def novo_profissional():
     if check:
         return check
 
-    from services.barbearia_service import criar_profissional
-
     if request.method == "POST":
         nome = request.form.get("nome", "").strip()
-        ativo = request.form.get("ativo") == "on" or True  # Novo = ativo por padrão
 
         if not nome:
             flash("O nome do profissional é obrigatório.", "error")
@@ -474,12 +510,6 @@ def editar_profissional(profissional_id):
     check = login_necessario()
     if check:
         return check
-
-    from services.barbearia_service import (
-        buscar_profissional_por_id,
-        atualizar_profissional,
-    )
-    import os
 
     profissional = buscar_profissional_por_id(profissional_id)
     if profissional is None:
@@ -517,16 +547,15 @@ def editar_profissional(profissional_id):
     return render_template("admin_profissional_form.html", profissional=profissional)
 
 
-@admin_bp.route("/profissionais/alternar/<int:profissional_id>")
+@admin_bp.route("/profissionais/alternar/<int:profissional_id>", methods=["POST"])
 def alternar_profissional(profissional_id):
     """
     Ativa ou desativa um profissional.
+    POST + CSRF: mutação nunca via GET (evita CSRF/logout-forçado por link).
     """
     check = login_necessario()
     if check:
         return check
-
-    from services.barbearia_service import buscar_profissional_por_id, atualizar_profissional
 
     profissional = buscar_profissional_por_id(profissional_id)
     if profissional is None:
@@ -540,16 +569,15 @@ def alternar_profissional(profissional_id):
     return redirect(url_for("admin.listar_profissionais"))
 
 
-@admin_bp.route("/profissionais/excluir/<int:profissional_id>")
+@admin_bp.route("/profissionais/excluir/<int:profissional_id>", methods=["POST"])
 def excluir_profissional(profissional_id):
     """
     Exclui um profissional somente se for seguro (sem agendamentos).
+    POST + CSRF: mutação nunca via GET.
     """
     check = login_necessario()
     if check:
         return check
-
-    from services.barbearia_service import excluir_profissional as servico_excluir
 
     if servico_excluir(profissional_id):
         flash("Profissional excluído com sucesso!", "success")
@@ -573,8 +601,6 @@ def listar_planos():
     if check:
         return check
 
-    from services.barbearia_service import listar_planos, atualizar_status_plano
-
     planos = listar_planos()
 
     # Atualiza status real (expirado/esgotado) para cada plano
@@ -594,13 +620,6 @@ def novo_plano():
     check = login_necessario()
     if check:
         return check
-
-    from services.barbearia_service import (
-        criar_cliente,
-        criar_plano,
-        buscar_plano_por_cliente,
-        listar_planos_tipos,
-    )
 
     if request.method == "POST":
         nome = request.form.get("nome", "").strip()
@@ -668,12 +687,10 @@ def renovar_plano(plano_id):
     if check:
         return check
 
-    from services.barbearia_service import renovar_plano
-
     forma_pagamento = request.form.get("forma_pagamento", "dinheiro")
     taxa_cartao = request.form.get("taxa_cartao", "0")
 
-    plano = renovar_plano(
+    plano = renovar_plano_svc(
         plano_id, forma_pagamento=forma_pagamento, taxa_cartao=taxa_cartao
     )
     if plano is None:
@@ -696,9 +713,7 @@ def cancelar_plano(plano_id):
     if check:
         return check
 
-    from services.barbearia_service import cancelar_plano
-
-    cancelar_plano(plano_id)
+    cancelar_plano_svc(plano_id)
     flash("Plano cancelado.", "success")
     return redirect(url_for("admin.listar_planos"))
 
@@ -712,8 +727,6 @@ def ver_codigo_plano(plano_id):
     if check:
         return check
 
-    from services.barbearia_service import buscar_plano_por_id
-
     plano = buscar_plano_por_id(plano_id)
     if plano is None:
         flash("Plano não encontrado.", "error")
@@ -723,10 +736,11 @@ def ver_codigo_plano(plano_id):
     return redirect(url_for("admin.listar_planos"))
 
 
-@admin_bp.route("/servicos/excluir/<int:servico_id>")
+@admin_bp.route("/servicos/excluir/<int:servico_id>", methods=["POST"])
 def excluir_servico(servico_id):
     """
     Exclui um serviço pelo ID.
+    POST + CSRF: mutação nunca via GET.
     """
     check = login_necessario()
     if check:
@@ -737,9 +751,25 @@ def excluir_servico(servico_id):
     if servico is None:
         flash("Serviço não encontrado.", "error")
     else:
-        db.session.delete(servico)
-        db.session.commit()
-        flash("Serviço excluído com sucesso.", "success")
+        # Proteção de integridade: não excluir serviço em uso
+        # (agendamentos, pacotes de agendamento, catálogo de planos ou
+        # benefícios de clientes). Excluir quebraria histórico e planos.
+        em_uso = (
+            Agendamento.query.filter_by(servico=servico.nome).first() is not None
+            or AgendamentoServico.query.filter_by(servico_id=servico.id).first() is not None
+            or PlanoTipoBeneficio.query.filter_by(servico_id=servico.id).first() is not None
+            or PlanoBeneficio.query.filter_by(servico_id=servico.id).first() is not None
+        )
+        if em_uso:
+            flash(
+                "Não é possível excluir: este serviço está em uso "
+                "(agendamentos ou planos).",
+                "error",
+            )
+        else:
+            db.session.delete(servico)
+            db.session.commit()
+            flash("Serviço excluído com sucesso.", "success")
 
     return redirect(url_for("admin.listar_servicos"))
 # ============================================
@@ -775,29 +805,40 @@ def pagamento_agendamento(agendamento_id):
         taxa = request.form.get("taxa_cartao", "0")
         valor = request.form.get("valor", str(valor_default))
 
-        if financeiro is None:
-            financeiro = Financeiro(agendamento_id=agendamento.id)
-            db.session.add(financeiro)
         try:
-            financeiro.valor = round(float(valor or 0), 2)
+            valor_float = round(float(valor or 0), 2)
         except (TypeError, ValueError):
             flash("Valor inválido.", "error")
             return redirect(
                 url_for("admin.pagamento_agendamento", agendamento_id=agendamento.id)
             )
-        if financeiro.valor < 0:
+        if valor_float < 0:
             flash("Valor não pode ser negativo.", "error")
             return redirect(
                 url_for("admin.pagamento_agendamento", agendamento_id=agendamento.id)
             )
-        db.session.flush()
+
+        if financeiro is None:
+            financeiro = Financeiro(agendamento_id=agendamento.id)
+            db.session.add(financeiro)
+            db.session.flush()
 
         resultado, erro = atualizar_pagamento_agendamento(
             agendamento.id, status, forma, taxa_cartao=taxa
         )
         if erro:
+            db.session.rollback()
             flash(erro, "error")
         else:
+            # Atualiza o valor cobrado (receita bruta) após validar status/forma.
+            # atualizar_pagamento_agendamento já normalizou taxa_cartao e
+            # zerou a taxa ao trocar cartão -> PIX/dinheiro.
+            financeiro = Financeiro.query.filter_by(
+                agendamento_id=agendamento.id
+            ).first()
+            if financeiro is not None:
+                financeiro.valor = valor_float
+                db.session.commit()
             flash("Pagamento registrado com sucesso.", "success")
         return redirect(url_for("admin.listar_agendamentos"))
 

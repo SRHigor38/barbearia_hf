@@ -87,7 +87,7 @@
                         <tr>
                             <td>#{{ servico.id }}</td>
                             <td><strong>{{ servico.nome }}</strong></td>
-                            <td class="text-gold">R$ {{ servico.preco }}</td>
+                            <td class="text-gold">{{ servico.preco|formatar_moeda }}</td>
                             <td>{{ servico.tempo }} min</td>
                             <td class="acoes">
                                 <a href="/admin/servicos/editar/{{ servico.id }}">
@@ -95,11 +95,12 @@
                                         <i class="bi bi-pencil me-1"></i>Editar
                                     </button>
                                 </a>
-                                <a href="/admin/servicos/excluir/{{ servico.id }}">
-                                    <button class="btn-danger-custom">
+                                <form method="POST" action="/admin/servicos/excluir/{{ servico.id }}" style="display:inline;" onsubmit="return confirm('Excluir serviço?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn-danger-custom" type="submit">
                                         <i class="bi bi-trash me-1"></i>Excluir
                                     </button>
-                                </a>
+                                </form>
                             </td>
                         </tr>
                         {% endfor %}

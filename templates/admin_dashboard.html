@@ -82,7 +82,7 @@
             </div>
             <div class="ms-3">
                 <div class="card-title">Faturamento Hoje</div>
-                <div class="card-value" style="color:#ffc107;">R$ {{ "%.2f"|format(faturamento_hoje) }}</div>
+                <div class="card-value" style="color:#ffc107;">{{ faturamento_hoje|formatar_moeda }}</div>
             </div>
         </div>
     </div>

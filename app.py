@@ -22,18 +22,7 @@ from config import Config
 from models import db
 from services.financeiro_service import formatar_moeda, aplicar_migracoes
 from utils import formatar_telefone
-from models.servico import Servico
 from models.admin import Admin
-from models.profissional import Profissional
-from models.cliente import Cliente
-from models.bloqueio import Bloqueio
-from models.plano import Plano
-from models.plano_tipo import PlanoTipo
-from models.plano_tipo_beneficio import PlanoTipoBeneficio
-from models.plano_beneficio import PlanoBeneficio
-from models.agendamento_servico import AgendamentoServico
-from models.financeiro import Financeiro
-from models.despesa import Despesa
 from routes import main_bp, admin_bp
 from services.barbearia_service import criar_banco_e_popular
 
@@ -96,6 +85,12 @@ def create_app():
         flash("Requisição inválida. Verifique os dados enviados.", "error")
         return redirect(url_for("main.inicio"))
 
+    @app.errorhandler(413)
+    def arquivo_muito_grande(erro):
+        """Erro 413: upload acima de MAX_CONTENT_LENGTH (2MB)."""
+        flash("Arquivo muito grande. Envie uma imagem de até 2MB.", "error")
+        return redirect(url_for("admin.listar_profissionais"))
+
     # ============================================
     # CRIAÇÃO DO BANCO E DADOS INICIAIS
     # ============================================
@@ -108,13 +103,18 @@ def create_app():
 
         # Cria admin padrão se não existir
         if Admin.query.first() is None:
+            # Senha inicial configurável por ambiente (ADMIN_SENHA_INICIAL).
+            # Fallback "admin123" apenas para desenvolvimento local —
+            # EM PRODUÇÃO defina ADMIN_SENHA_INICIAL e/ou troque a senha
+            # em /admin/config após o primeiro login.
+            senha_inicial = os.getenv("ADMIN_SENHA_INICIAL", "admin123")
             admin = Admin(
                 usuario="admin",
-                senha_hash=bcrypt.generate_password_hash("admin123").decode("utf-8")
+                senha_hash=bcrypt.generate_password_hash(senha_inicial).decode("utf-8")
             )
             db.session.add(admin)
             db.session.commit()
-            print("✅ Admin padrão criado: usuario=admin / senha=admin123")
+            print("Admin padrao criado: usuario=admin (defina ADMIN_SENHA_INICIAL em producao)")
 
     return app
 
