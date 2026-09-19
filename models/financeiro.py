@@ -18,7 +18,9 @@ class Financeiro(db.Model):
     Tabela: financeiro
     Colunas:
         id                -> Identificador único (chave primária)
-        agendamento_id    -> FK para agendamento.id (opcional — receita de serviço)
+        agendamento_id    -> FK para agendamento.id
+                             (NULLABLE: NULL em vendas/renovações de plano)
+                             UNIQUE: um agendamento tem no máximo um lançamento
         plano_id          -> FK para plano.id (opcional — receita de plano/renovação)
         tipo              -> Origem: agendamento | plano | renovacao_plano
         descricao         -> Descrição da movimentação (ex: "Corte - João")

@@ -52,7 +52,7 @@
         <!-- Preço -->
         <div class="info-linha">
             <span class="info-label"><i class="bi bi-currency-dollar me-2"></i>Preço</span>
-            <span class="info-value">R$ {{ "%.2f"|format(plano.preco / 100) }}</span>
+            <span class="info-value">{{ plano.preco|formatar_moeda }}</span>
         </div>
 
         <!-- Validade -->

@@ -36,7 +36,7 @@
                 {% for plano in planos %}
                 <tr>
                     <td><strong>{{ plano.cliente.nome }}</strong></td>
-                    <td>{{ plano.cliente.telefone }}</td>
+                    <td>{{ plano.cliente.telefone|formatar_telefone }}</td>
                     <td>{{ plano.nome }}</td>
                     <td>
                         {% for ben in plano.beneficios %}

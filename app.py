@@ -21,6 +21,7 @@ from flask_bcrypt import Bcrypt
 from config import Config
 from models import db
 from services.financeiro_service import formatar_moeda, aplicar_migracoes
+from utils import formatar_telefone
 from models.servico import Servico
 from models.admin import Admin
 from models.profissional import Profissional
@@ -47,6 +48,9 @@ def create_app():
 
     # Registra o filtro global de formatação de moeda para todos os templates
     app.jinja_env.filters["formatar_moeda"] = formatar_moeda
+
+    # Registra o filtro global de formatação de telefone (padrão brasileiro)
+    app.jinja_env.filters["formatar_telefone"] = formatar_telefone
 
     # Carrega as configurações da classe Config
     app.config.from_object(Config)
@@ -116,12 +120,21 @@ def create_app():
 
 
 # ============================================
+# INSTÂNCIA DA APLICAÇÃO (nível de módulo)
+# ============================================
+# O objeto `app` precisa existir no nível do módulo para que servidores
+# WSGI (Gunicorn) e plataformas de deploy (Render/Heroku) importem a
+# aplicação via "app:app" (ver Procfile e render.yaml).
+app = create_app()
+
+
+# ============================================
 # PONTO DE ENTRADA
 # ============================================
-# Se este arquivo for executado diretamente, cria a app e inicia o servidor.
+# Se este arquivo for executado diretamente, inicia o servidor de
+# desenvolvimento. Em produção use Gunicorn (Procfile/render.yaml).
 if __name__ == "__main__":
-    app = create_app()
     # debug=True apenas em desenvolvimento
     # Para produção, defina FLASK_DEBUG=false no .env
-    debug_mode = os.getenv("FLASK_DEBUG", "true").lower() == "true"
+    debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     app.run(debug=debug_mode)

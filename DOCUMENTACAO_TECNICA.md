@@ -49,7 +49,7 @@ Flask (create_app)
 - `duracao_total` = suma de las duraciones de los servicios.
 
 ### PlanoTipo (catálogo)
-- Los 8 planes con `preco` en CENTAVOS (9000 = R$ 90,00) y `dias_permitidos` ("1,2,3,4" = Seg-Qui).
+- Los 8 planes con `preco` en REAIS (90.00 = R$ 90,00) y `dias_permitidos` ("1,2,3,4" = Seg-Qui).
 
 ### Plano (del cliente)
 - Pertenece a un `cliente` (1:1, `cliente_id` único) y a un `plano_tipo`.
@@ -143,7 +143,7 @@ Flask (create_app)
 
 ### Unidades monetarias
 
-- `planos_tipo.preco`: CENTAVOS (9000 = R$ 90,00).
+- `planos_tipo.preco`: REAIS (90.00 = R$ 90,00).
 - `financeiro.valor`, `financeiro.taxa_cartao`, `despesa.valor`: REAIS (Float).
 - `preco_plano_reais()` y `formatar_moeda()` centralizan las conversiones.
 ---
@@ -185,7 +185,6 @@ Flask (create_app)
 | `/admin/financeiro` | Panel financiero con filtros |
 | `/admin/financeiro/pdf` | Exportación PDF |
 | `/admin/gastos` | CRUD gastos |
-| `/admin/relatorios` | Relatório por período |
 | `/admin/relatorios/financeiro` | Relatório financiero |
 | `/admin/config` | Cambiar usuario/contraseña |
 

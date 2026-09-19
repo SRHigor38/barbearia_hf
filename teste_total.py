@@ -93,13 +93,13 @@ def rodar():
 
         # Valores dos planos (centavos)
         valores_esperados = {
-            "Bronze": 9000, "Prata": 8000, "Ouro": 9500, "VIP": 10999,
-            "Elite": 7999, "Basic": 8000, "Light": 7000, "Premium": 9000,
+            "Bronze": 90.00, "Prata": 80.00, "Ouro": 95.00, "VIP": 109.99,
+            "Elite": 79.99, "Basic": 80.00, "Light": 70.00, "Premium": 90.00,
         }
         ok_val = True
         for nome, valor in valores_esperados.items():
             pt = buscar_plano_tipo_por_nome(nome)
-            if pt is None or pt.preco != valor:
+            if pt is None or round(float(pt.preco), 2) != valor:
                 ok_val = False
                 print(f"    {nome}: esperado {valor}, encontrado {pt.preco if pt else 'None'}")
         registrar("Preços dos 8 planos corretos", ok_val)
@@ -205,12 +205,12 @@ def rodar():
             registrar("Dashboard exige login (redireciona)", resp.status_code == 302,
                       f"status: {resp.status_code}")
 
-        # T24: Relatórios exigem login
-        with app.test_request_context():
-            from routes.admin import listar_relatorios
-            resp = listar_relatorios()
-            registrar("Relatórios exigem login (redireciona)", resp.status_code == 302,
-                      f"status: {resp.status_code}")
+        # T24: Rota /admin/relatorios foi removida da interface
+        # (404 interno -> errorhandler do app redireciona 302 para a home)
+        client_rel = app.test_client()
+        resp_rel = client_rel.get("/admin/relatorios")
+        registrar("Rota /admin/relatorios removida (302 home)", resp_rel.status_code == 302,
+                  f"status: {resp_rel.status_code}")
 
         # T25: Site público (via test_client para obter Response real)
         try:

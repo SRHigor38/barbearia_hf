@@ -50,6 +50,7 @@
                     <th>Serviço</th>
                     <th>Profissional</th>
                     <th>Criado em</th>
+                    <th>Pagamento</th>
                     <th>Ações</th>
                 </tr>
             </thead>
@@ -58,7 +59,7 @@
                 <tr>
                     <td>#{{ agendamento.id }}</td>
                     <td><strong>{{ agendamento.nome }}</strong></td>
-                    <td>{{ agendamento.telefone }}</td>
+                    <td>{{ agendamento.telefone|formatar_telefone }}</td>
                     <td>{{ agendamento.data }}</td>
                     <td><span class="text-gold">{{ agendamento.horario }}</span></td>
                     <td>{{ agendamento.servico }}</td>
@@ -70,6 +71,31 @@
                         {% endif %}
                     </td>
                     <td>{{ agendamento.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        {% set fin = agendamento.financeiro %}
+                        {% if fin and fin.status == 'pago' %}
+                            <span style="color:#28a745;font-weight:600;">
+                                <i class="bi bi-check-circle me-1"></i>Pago
+                            </span>
+                            {% if fin.forma_pagamento %}
+                                <div style="font-size:12px;color:#999;">
+                                    — {{ nome_forma_pagamento(fin.forma_pagamento) }}
+                                </div>
+                            {% endif %}
+                        {% elif fin and fin.status == 'cancelado' %}
+                            <span style="color:#dc3545;font-weight:600;">
+                                <i class="bi bi-x-circle me-1"></i>Cancelado
+                            </span>
+                        {% elif agendamento.plano_id %}
+                            <span style="color:#6f42c1;font-weight:600;">
+                                <i class="bi bi-stars me-1"></i>Incluído no plano
+                            </span>
+                        {% else %}
+                            <span style="color:#ffc107;font-weight:600;">
+                                <i class="bi bi-clock me-1"></i>Pendente
+                            </span>
+                        {% endif %}
+                    </td>
                     <td class="acoes">
                         <a href="/admin/agendamentos/pagamento/{{ agendamento.id }}">
                             <button class="btn-edit">

@@ -36,10 +36,17 @@ tempCodeRunnerFile.py
 *_recheck.txt
 check_*.py
 diag_*.py
+diag_*.txt
 limpar_*.py
 estado*.txt
 tracked*.txt
 dirlist*.txt
+
+# Backups de banco de dados e saídas de diagnóstico
+*.backup_*
+dblist.txt
+out_dash.txt
+dash_result.txt
 
 # IDE
 .idea/

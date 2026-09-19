@@ -1,5 +1,18 @@
 # Script de teste: validação completa da regra de dias da semana
 # Convenção: 1=Segunda, 2=Terça, 3=Quarta, 4=Quinta, 5=Sexta, 6=Sábado, 7=Domingo
+# Usa banco TEMPORÁRIO (teste_dias_temp.db) e NUNCA modifica o banco real.
+import os
+
+BANCO_TEMP = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "teste_dias_temp.db"
+)
+if os.path.exists(BANCO_TEMP):
+    try:
+        os.remove(BANCO_TEMP)
+    except PermissionError:
+        pass
+os.environ["DATABASE_URL"] = "sqlite:///" + BANCO_TEMP.replace("\\", "/")
+
 from app import create_app
 from services.barbearia_service import (
     criar_cliente, criar_plano, dia_permitido_plano,
@@ -199,3 +212,10 @@ with app.app_context():
         print(f"  [{status}] {nome}")
     print()
     print(f"RESULTADO GERAL: {'TODOS OS TESTES PASSARAM' if all_pass else 'HÁ FALHAS'}")
+
+# Limpeza do banco temporário
+try:
+    if os.path.exists(BANCO_TEMP):
+        os.remove(BANCO_TEMP)
+except PermissionError:
+    pass

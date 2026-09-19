@@ -45,7 +45,8 @@ class Plano(db.Model):
         db.Integer, db.ForeignKey("plano_tipo.id"), nullable=False
     )
     nome = db.Column(db.String(100), nullable=False)
-    preco = db.Column(db.Integer, nullable=False, default=0)
+    # preco em REAIS (Float) — preserva centavos (ex: 109.99)
+    preco = db.Column(db.Float, nullable=False, default=0.0)
     data_inicio = db.Column(db.String(10), nullable=False)
     data_validade = db.Column(db.String(10), nullable=False)
     status = db.Column(db.String(20), nullable=False, default="ATIVO")
@@ -114,7 +115,6 @@ class Plano(db.Model):
         for sid in servico_ids:
             beneficio = self.get_beneficio(sid)
             if beneficio is None:
-                servico = db.session.get(db.Model, sid)  # fallback
                 return False, "Seu plano não inclui este serviço."
             if not beneficio.disponivel:
                 return False, f"Seu plano não possui mais benefícios de {beneficio.servico.nome}."

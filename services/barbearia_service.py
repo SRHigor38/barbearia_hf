@@ -20,26 +20,27 @@ from models.plano_tipo import PlanoTipo
 from models.plano_tipo_beneficio import PlanoTipoBeneficio
 from models.plano_beneficio import PlanoBeneficio
 from models.agendamento_servico import AgendamentoServico
+from utils import normalizar_nome, normalizar_telefone, nomes_busca_telefone
 
 
 # ============================================
 # CATÁLOGO DE PLANOS PRÉ-DEFINIDOS
 # ============================================
-# Preços em centavos (R$ 90,00 = 9000)
-# Valores oficiais:
-#   Bronze  = R$ 90,00
-#   Prata   = R$ 80,00
-#   Ouro    = R$ 95,00
-#   VIP     = R$ 109,99
-#   Elite   = R$ 79,99
-#   Basic   = R$ 80,00
-#   Light   = R$ 70,00
-#   Premium = R$ 90,00
+# Valores oficiais EM REAIS:
+#   Bronze  = 90.00 (R$ 90,00)
+#   Prata   = 80.00 (R$ 80,00)
+#   Ouro    = 95.00 (R$ 95,00)
+#   VIP     = 109.99 (R$ 109,99)
+#   Elite   = 79.99 (R$ 79,99)
+#   Basic   = 80.00 (R$ 80,00)
+#   Light   = 70.00 (R$ 70,00)
+#   Premium = 90.00 (R$ 90,00)
+# UNIDADE ÚNICA: REAIS (Float). NÃO usar centavos em nenhum ponto.
 
 PLANOS_PREDEFINIDOS = [
     {
         "nome": "Bronze",
-        "preco": 9000,
+        "preco": 90.00,
         "descricao": "4 Cortes + 4 Barbas por mês",
         "dias_permitidos": "1,2,3,4",
         "beneficios": [
@@ -49,7 +50,7 @@ PLANOS_PREDEFINIDOS = [
     },
     {
         "nome": "Prata",
-        "preco": 8000,
+        "preco": 80.00,
         "descricao": "4 Cortes + 4 Sobrancelhas por mês",
         "dias_permitidos": "1,2,3,4",
         "beneficios": [
@@ -59,7 +60,7 @@ PLANOS_PREDEFINIDOS = [
     },
     {
         "nome": "Ouro",
-        "preco": 9500,
+        "preco": 95.00,
         "descricao": "4 Cortes + 4 Barbas + 4 Sobrancelhas por mês",
         "dias_permitidos": "1,2,3,4",
         "beneficios": [
@@ -70,7 +71,7 @@ PLANOS_PREDEFINIDOS = [
     },
     {
         "nome": "VIP",
-        "preco": 10999,
+        "preco": 109.99,
         "descricao": "Corte, Barba e Sobrancelha ilimitados",
         "dias_permitidos": "1,2,3,4",
         "beneficios": [
@@ -81,7 +82,7 @@ PLANOS_PREDEFINIDOS = [
     },
     {
         "nome": "Elite",
-        "preco": 7999,
+        "preco": 79.99,
         "descricao": "Corte ilimitado",
         "dias_permitidos": "1,2,3",
         "beneficios": [
@@ -90,7 +91,7 @@ PLANOS_PREDEFINIDOS = [
     },
     {
         "nome": "Basic",
-        "preco": 8000,
+        "preco": 80.00,
         "descricao": "3 Cortes + 3 Barbas por mês",
         "dias_permitidos": "1,2,3,4",
         "beneficios": [
@@ -100,7 +101,7 @@ PLANOS_PREDEFINIDOS = [
     },
     {
         "nome": "Light",
-        "preco": 7000,
+        "preco": 70.00,
         "descricao": "3 Cortes por mês",
         "dias_permitidos": "1,2,3",
         "beneficios": [
@@ -109,7 +110,7 @@ PLANOS_PREDEFINIDOS = [
     },
     {
         "nome": "Premium",
-        "preco": 9000,
+        "preco": 90.00,
         "descricao": "3 Cortes + 3 Barbas + 3 Sobrancelhas por mês",
         "dias_permitidos": "1,2,3,4",
         "beneficios": [
@@ -279,8 +280,8 @@ def criar_agendamento(nome, telefone, data, horario, servico,
     Retorna o objeto Agendamento criado.
     """
     novo_agendamento = Agendamento(
-        nome=nome.strip(),
-        telefone=telefone.strip(),
+        nome=normalizar_nome(nome),
+        telefone=normalizar_telefone(telefone),
         data=data,
         horario=horario,
         servico=servico,
@@ -299,7 +300,7 @@ def criar_agendamento(nome, telefone, data, horario, servico,
         financeiro = Financeiro(
             agendamento_id=novo_agendamento.id,
             tipo="agendamento",
-            descricao=f"{servico} - {nome.strip()}",
+            descricao=f"{servico} - {normalizar_nome(nome)}",
             valor=float(valor or 0),
             status="pendente",
             data_pagamento=data,
@@ -703,15 +704,28 @@ def buscar_cliente_por_id(cliente_id):
 
 
 def buscar_cliente_por_telefone(telefone):
-    """Busca um cliente pelo telefone."""
-    return Cliente.query.filter_by(telefone=telefone).first()
+    """
+    Busca um cliente pelo telefone, aceitando o valor somente com números
+    (padrão atual) ou formatado (registros antigos). Não altera o banco.
+    """
+    for variacao in nomes_busca_telefone(telefone):
+        cliente = Cliente.query.filter_by(telefone=variacao).first()
+        if cliente is not None:
+            return cliente
+    return None
 
 
 def criar_cliente(nome, telefone, email=None, aniversario=None, observacoes=None):
     """
     Cria e salva um novo cliente no banco.
-    Se já existir cliente com o mesmo telefone, retorna o existente.
+    - Normaliza o nome para o padrão Title Case (ex: "joao da silva" -> "Joao Da Silva").
+    - Armazena o telefone preferencialmente somente com números (ex: "38991388394").
+    - Se já existir cliente com o mesmo telefone, retorna o existente.
+    Não altera outras informações do cliente.
     """
+    nome = normalizar_nome(nome)
+    telefone = normalizar_telefone(telefone)
+
     cliente_existente = buscar_cliente_por_telefone(telefone)
     if cliente_existente:
         return cliente_existente
@@ -829,7 +843,35 @@ def buscar_plano_tipo_por_nome(nome):
     return PlanoTipo.query.filter_by(nome=nome).first()
 
 
-def criar_plano(cliente_id, plano_tipo_id, dias_permitidos=None):
+def _normalizar_pagamento_plano(forma_pagamento, taxa_cartao):
+    """
+    Normaliza a forma de pagamento e a taxa de cartão de uma venda/renovação
+    de plano. Valores monetários SEMPRE em REAIS (nada de centavos).
+
+    Retorna (forma, taxa):
+      - forma: dinheiro | pix | cartao (fallback: dinheiro)
+      - taxa : apenas quando forma == cartao; caso contrário 0.0
+    """
+    from services.financeiro_service import FORMAS_PAGAMENTO
+
+    forma = (forma_pagamento or "dinheiro").strip().lower()
+    if forma not in FORMAS_PAGAMENTO:
+        forma = "dinheiro"
+
+    try:
+        taxa = float(taxa_cartao or 0)
+    except (TypeError, ValueError):
+        taxa = 0.0
+    if taxa < 0:
+        taxa = 0.0
+    if forma != "cartao":
+        taxa = 0.0
+
+    return forma, round(taxa, 2)
+
+
+def criar_plano(cliente_id, plano_tipo_id, dias_permitidos=None,
+                forma_pagamento="dinheiro", taxa_cartao=0.0):
     """
     Cria um novo plano para um cliente a partir de um plano tipo pré-definido.
     - Copia os benefícios do plano tipo para o plano.
@@ -837,10 +879,20 @@ def criar_plano(cliente_id, plano_tipo_id, dias_permitidos=None):
     - Validade: 30 dias a partir de hoje.
     - Status: ATIVO.
     - dias_permitidos: se None, usa o padrão do plano tipo.
+    - Registra o lançamento financeiro da VENDA (tipo="plano") vinculado
+      APENAS ao plano (plano_id). agendamento_id fica NULL — venda de plano
+      NÃO exige agendamento.
+    - Valor em REAIS (ex: 90.00 / 109.99), nunca em centavos.
+    - Transacional: qualquer falha faz rollback e devolve None (não deixa
+      plano parcial nem lançamento órfão).
     """
+    from services.financeiro_service import preco_plano_reais
+
     plano_tipo = buscar_plano_tipo_por_id(plano_tipo_id)
     if plano_tipo is None:
         return None
+
+    forma, taxa = _normalizar_pagamento_plano(forma_pagamento, taxa_cartao)
 
     hoje = datetime.now().date()
     data_validade = hoje + timedelta(days=30)
@@ -854,53 +906,61 @@ def criar_plano(cliente_id, plano_tipo_id, dias_permitidos=None):
     if dias_permitidos is None:
         dias_permitidos = plano_tipo.dias_permitidos
 
-    plano = Plano(
-        cliente_id=cliente_id,
-        plano_tipo_id=plano_tipo.id,
-        nome=plano_tipo.nome,
-        preco=plano_tipo.preco,
-        data_inicio=hoje.strftime("%Y-%m-%d"),
-        data_validade=data_validade.strftime("%Y-%m-%d"),
-        status="ATIVO",
-        dias_permitidos=dias_permitidos,
-        codigo_acesso=codigo,
-    )
-    db.session.add(plano)
-    db.session.flush()
-
-    # Copia os benefícios do plano tipo para o plano
-    for ben_tipo in plano_tipo.beneficios:
-        beneficio = PlanoBeneficio(
-            plano_id=plano.id,
-            servico_id=ben_tipo.servico_id,
-            quantidade=ben_tipo.quantidade,
-            quantidade_utilizada=0,
-            ilimitado=ben_tipo.ilimitado
+    try:
+        plano = Plano(
+            cliente_id=cliente_id,
+            plano_tipo_id=plano_tipo.id,
+            nome=plano_tipo.nome,
+            preco=plano_tipo.preco,
+            data_inicio=hoje.strftime("%Y-%m-%d"),
+            data_validade=data_validade.strftime("%Y-%m-%d"),
+            status="ATIVO",
+            dias_permitidos=dias_permitidos,
+            codigo_acesso=codigo,
         )
-        db.session.add(beneficio)
+        db.session.add(plano)
+        db.session.flush()
 
-    db.session.flush()
+        # Copia os benefícios do plano tipo para o plano
+        for ben_tipo in plano_tipo.beneficios:
+            beneficio = PlanoBeneficio(
+                plano_id=plano.id,
+                servico_id=ben_tipo.servico_id,
+                quantidade=ben_tipo.quantidade,
+                quantidade_utilizada=0,
+                ilimitado=ben_tipo.ilimitado
+            )
+            db.session.add(beneficio)
 
-    # ============================================
-    # RECEITA DA VENDA DO PLANO
-    # Reutiliza a tabela Financeiro (sem criar sistema paralelo).
-    # Valor convertido de centavos para reais: 9000 -> R$ 90,00.
-    # SOMENTE status "pago" entra no faturamento.
-    # ============================================
-    valor_reais = float(plano_tipo.preco or 0) / 100.0
-    receita_plano = Financeiro(
-        plano_id=plano.id,
-        tipo="plano",
-        descricao=f"Venda de plano {plano_tipo.nome}",
-        valor=round(valor_reais, 2),
-        status="pago",
-        forma_pagamento="dinheiro",
-        data_pagamento=hoje.strftime("%Y-%m-%d"),
-    )
-    db.session.add(receita_plano)
+        db.session.flush()
 
-    db.session.commit()
-    return plano
+        # ============================================
+        # RECEITA DA VENDA DO PLANO
+        # Reutiliza a tabela Financeiro (sem criar sistema paralelo).
+        # plano_tipo.preco JÁ ESTÁ EM REAIS (ex: 90.00) — NÃO se divide por 100.
+        # agendamento_id = None: a venda do plano não tem agendamento.
+        # SOMENTE status "pago" entra no faturamento.
+        # ============================================
+        valor_reais = preco_plano_reais(plano_tipo)
+        receita_plano = Financeiro(
+            agendamento_id=None,
+            plano_id=plano.id,
+            tipo="plano",
+            descricao=f"Venda de plano {plano_tipo.nome}",
+            valor=valor_reais,
+            taxa_cartao=taxa,
+            status="pago",
+            forma_pagamento=forma,
+            data_pagamento=hoje.strftime("%Y-%m-%d"),
+        )
+        db.session.add(receita_plano)
+
+        db.session.commit()
+        return plano
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao criar plano (rollback efetuado): {e}")
+        return None
 
 
 def buscar_plano_por_cliente(cliente_id):
@@ -1033,47 +1093,65 @@ def devolver_beneficios(plano_id, servico_ids):
     return True
 
 
-def renovar_plano(plano_id):
+def renovar_plano(plano_id, forma_pagamento="dinheiro", taxa_cartao=0.0):
     """
-    Renova um plano: restaura todos os benefícios, nova validade de 30 dias, status ATIVO.
-    Registra a receita de renovação (tipo="renovacao_plano") sem duplicar a venda original.
+    Renova um plano: restaura todos os benefícios, nova validade de 30 dias,
+    status ATIVO. Registra a receita da renovação (tipo="renovacao_plano")
+    sem duplicar a venda original.
+    - agendamento_id = None (renovação não tem agendamento).
+    - Valor em REAIS (plano_tipo.preco já está em reais — NÃO divide por 100).
+    - Transacional: em caso de falha faz rollback e devolve None.
     """
+    from services.financeiro_service import preco_plano_reais
+
     plano = buscar_plano_por_id(plano_id)
     if plano is None:
         return None
 
+    forma, taxa = _normalizar_pagamento_plano(forma_pagamento, taxa_cartao)
+
     hoje = datetime.now().date()
-    plano.data_inicio = hoje.strftime("%Y-%m-%d")
-    plano.data_validade = (hoje + timedelta(days=30)).strftime("%Y-%m-%d")
-    plano.status = "ATIVO"
 
-    # Restaura todos os benefícios
-    for beneficio in plano.beneficios:
-        if not beneficio.ilimitado:
-            beneficio.quantidade_utilizada = 0
+    try:
+        plano.data_inicio = hoje.strftime("%Y-%m-%d")
+        plano.data_validade = (hoje + timedelta(days=30)).strftime("%Y-%m-%d")
+        plano.status = "ATIVO"
 
-    db.session.flush()
+        # Restaura todos os benefícios
+        for beneficio in plano.beneficios:
+            if not beneficio.ilimitado:
+                beneficio.quantidade_utilizada = 0
 
-    # ============================================
-    # RECEITA DE RENOVAÇÃO DO PLANO
-    # Reutiliza a tabela Financeiro. A venda original (tipo="plano")
-    # é preservada; a renovação entra como nova receita.
-    # ============================================
-    plano_tipo = plano.plano_tipo
-    valor_reais = float(plano_tipo.preco or 0) / 100.0 if plano_tipo else 0.0
-    receita_renovacao = Financeiro(
-        plano_id=plano.id,
-        tipo="renovacao_plano",
-        descricao=f"Renovação de plano {plano.nome}",
-        valor=round(valor_reais, 2),
-        status="pago",
-        forma_pagamento="dinheiro",
-        data_pagamento=hoje.strftime("%Y-%m-%d"),
-    )
-    db.session.add(receita_renovacao)
+        db.session.flush()
 
-    db.session.commit()
-    return plano
+        # ============================================
+        # RECEITA DE RENOVAÇÃO DO PLANO
+        # Reutiliza a tabela Financeiro. A venda original (tipo="plano")
+        # é preservada; a renovação entra como nova receita.
+        # plano_tipo.preco JÁ ESTÁ EM REAIS — NÃO se divide por 100.
+        # agendamento_id = None: renovação de plano não tem agendamento.
+        # ============================================
+        plano_tipo = plano.plano_tipo
+        valor_reais = preco_plano_reais(plano_tipo)
+        receita_renovacao = Financeiro(
+            agendamento_id=None,
+            plano_id=plano.id,
+            tipo="renovacao_plano",
+            descricao=f"Renovação de plano {plano.nome}",
+            valor=valor_reais,
+            taxa_cartao=taxa,
+            status="pago",
+            forma_pagamento=forma,
+            data_pagamento=hoje.strftime("%Y-%m-%d"),
+        )
+        db.session.add(receita_renovacao)
+
+        db.session.commit()
+        return plano
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao renovar plano (rollback efetuado): {e}")
+        return None
 
 
 def cancelar_plano(plano_id):

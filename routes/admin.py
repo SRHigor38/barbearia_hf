@@ -30,7 +30,7 @@ from services.financeiro_service import (
     calcular_financeiro, periodo_para_datas, formatar_moeda,
     nome_forma_pagamento, registrar_despesa, atualizar_despesa,
     excluir_despesa, listar_despesas, CATEGORIAS_DESPESA, FORMAS_PAGAMENTO,
-    atualizar_pagamento_agendamento,
+    atualizar_pagamento_agendamento, faturamento_planos_periodo,
 )
 
 
@@ -171,31 +171,16 @@ def inicio():
     # Quantidade de planos expirados
     planos_expirados = Plano.query.filter_by(status="EXPIRADO").count()
 
-    # Quantidade de planos cancelados
-    planos_cancelados = Plano.query.filter_by(status="CANCELADO").count()
-
-    # Quantidade de planos esgotados
-    planos_esgotados = Plano.query.filter_by(status="ESGOTADO").count()
-
-    # Valor total dos planos cadastrados (usando preço do plano_tipo)
-    valor_planos = 0
-    for plano in Plano.query.all():
-        if plano.plano_tipo:
-            valor_planos += plano.plano_tipo.preco
-
-    # Faturamento relacionado aos planos (renovação)
-    # Usa o preço do plano_tipo para cada plano ativo
-    faturamento_planos = 0
-    for plano in Plano.query.filter_by(status="ATIVO").all():
-        if plano.plano_tipo:
-            faturamento_planos += plano.plano_tipo.preco
+    # Faturamento REAL de planos no mês (vendas + renovações pagas na tabela
+    # financeiro). NÃO é a carteira — é o que efetivamente entrou como receita.
+    ini_mes, fim_mes = periodo_para_datas("mes")
+    faturamento_planos = faturamento_planos_periodo(ini_mes, fim_mes)
 
     # ============================================
     # FATURAMENTO (FONTE ÚNICA)
     # Usa calcular_financeiro() do financeiro_service para garantir
-    # que Dashboard == Financeiro == Relatórios.
+    # que Dashboard == Financeiro.
     # ============================================
-    ini_mes, fim_mes = periodo_para_datas("mes")
     fin_mes = calcular_financeiro(ini_mes, fim_mes)
 
     faturamento_mes = fin_mes["receita_bruta"]
@@ -221,10 +206,7 @@ def inicio():
         faturamento_mes=faturamento_mes,
         planos_ativos=planos_ativos,
         planos_expirados=planos_expirados,
-        planos_cancelados=planos_cancelados,
-        planos_esgotados=planos_esgotados,
         clientes_em_planos=clientes_em_planos,
-        valor_planos=valor_planos,
         faturamento_planos=faturamento_planos,
         ultimos_agendamentos=ultimos_agendamentos,
         fin_mes=fin_mes,
@@ -267,7 +249,8 @@ def listar_agendamentos():
         "admin_agendamentos.html",
         agendamentos=agendamentos,
         profissionais=profissionais,
-        filtro_profissional=filtro_profissional
+        filtro_profissional=filtro_profissional,
+        nome_forma_pagamento=nome_forma_pagamento
     )
 
 
@@ -630,30 +613,46 @@ def novo_plano():
         elif not plano_tipo_id or not plano_tipo_id.isdigit():
             flash("Selecione um tipo de plano.", "error")
         else:
-            # Cria ou reutiliza o cliente
-            cliente = criar_cliente(nome=nome, telefone=telefone)
-
-            # Verifica se cliente já possui plano
-            if buscar_plano_por_cliente(cliente.id) is not None:
-                flash("Este cliente já possui um plano.", "error")
+            # Valida o tipo de plano ANTES de criar o cliente (evita cliente órfão)
+            if buscar_plano_tipo_por_id(int(plano_tipo_id)) is None:
+                flash("Tipo de plano inválido.", "error")
             else:
-                # Dias permitidos: se nenhum marcado, usa os do plano tipo
-                dias = ",".join(diasSelecionados) if diasSelecionados else None
+                # Forma de pagamento da venda do plano (valores em REAIS)
+                forma_pagamento = request.form.get("forma_pagamento", "dinheiro")
+                taxa_cartao = request.form.get("taxa_cartao", "0")
 
-                # Cria o plano a partir do tipo pré-definido
-                plano = criar_plano(
-                    cliente_id=cliente.id,
-                    plano_tipo_id=int(plano_tipo_id),
-                    dias_permitidos=dias,
-                )
-                if plano is None:
-                    flash("Tipo de plano inválido.", "error")
+                # Cria ou reutiliza o cliente
+                cliente = criar_cliente(nome=nome, telefone=telefone)
+
+                # Verifica se cliente já possui plano
+                if buscar_plano_por_cliente(cliente.id) is not None:
+                    flash("Este cliente já possui um plano.", "error")
                 else:
-                    flash(
-                        f"Plano {plano.nome} criado com sucesso! Código de acesso: {plano.codigo_acesso}",
-                        "success"
+                    # Dias permitidos: se nenhum marcado, usa os do plano tipo
+                    dias = ",".join(diasSelecionados) if diasSelecionados else None
+
+                    # Cria o plano a partir do tipo pré-definido + lançamento financeiro
+                    # (agendamento_id = NULL, plano_id preenchido, valor em REAIS)
+                    plano = criar_plano(
+                        cliente_id=cliente.id,
+                        plano_tipo_id=int(plano_tipo_id),
+                        dias_permitidos=dias,
+                        forma_pagamento=forma_pagamento,
+                        taxa_cartao=taxa_cartao,
                     )
-                    return redirect(url_for("admin.listar_planos"))
+                    if plano is None:
+                        flash(
+                            "Não foi possível criar o plano. Nenhum dado foi salvo.",
+                            "error"
+                        )
+                    else:
+                        flash(
+                            f"Plano {plano.nome} criado com sucesso! "
+                            f"Valor: {formatar_moeda(plano.preco)} — "
+                            f"Código de acesso: {plano.codigo_acesso}",
+                            "success"
+                        )
+                        return redirect(url_for("admin.listar_planos"))
 
     # GET: exibe o formulário com os planos tipos
     planos_tipos = listar_planos_tipos()
@@ -671,8 +670,20 @@ def renovar_plano(plano_id):
 
     from services.barbearia_service import renovar_plano
 
-    renovar_plano(plano_id)
-    flash("Plano renovado com sucesso! (4 cortes + 30 dias)", "success")
+    forma_pagamento = request.form.get("forma_pagamento", "dinheiro")
+    taxa_cartao = request.form.get("taxa_cartao", "0")
+
+    plano = renovar_plano(
+        plano_id, forma_pagamento=forma_pagamento, taxa_cartao=taxa_cartao
+    )
+    if plano is None:
+        flash("Não foi possível renovar o plano.", "error")
+    else:
+        flash(
+            f"Plano {plano.nome} renovado com sucesso! "
+            f"Valor: {formatar_moeda(plano.preco)} — nova validade {plano.data_validade}.",
+            "success"
+        )
     return redirect(url_for("admin.listar_planos"))
 
 
@@ -710,51 +721,6 @@ def ver_codigo_plano(plano_id):
 
     flash(f"Código de acesso de {plano.cliente.nome}: {plano.codigo_acesso}", "info")
     return redirect(url_for("admin.listar_planos"))
-
-
-# ============================================
-# RELATÓRIOS
-# ============================================
-
-
-@admin_bp.route("/relatorios")
-def listar_relatorios():
-    """
-    Gera relatório de agendamentos por período.
-    Recebe data inicial e final via query string (?data_inicio=&data_fim=).
-    """
-    check = login_necessario()
-    if check:
-        return check
-
-    from services.barbearia_service import (
-        listar_agendamentos_por_periodo,
-        calcular_totais_periodo,
-    )
-    from datetime import date
-
-    # Pega as datas da URL (ou usa valores padrão: mês atual)
-    data_inicio = request.args.get("data_inicio", "")
-    data_fim = request.args.get("data_fim", "")
-
-    agendamentos = []
-    totais = {"quantidade": 0, "total_faturado": 0, "ticket_medio": 0}
-
-    if data_inicio and data_fim:
-        # Valida se data_inicio não é maior que data_fim
-        if data_inicio > data_fim:
-            flash("Data inicial não pode ser maior que a data final.", "error")
-        else:
-            agendamentos = listar_agendamentos_por_periodo(data_inicio, data_fim)
-            totais = calcular_totais_periodo(agendamentos)
-
-    return render_template(
-        "admin_relatorio.html",
-        agendamentos=agendamentos,
-        totais=totais,
-        data_inicio=data_inicio,
-        data_fim=data_fim
-    )
 
 
 @admin_bp.route("/servicos/excluir/<int:servico_id>")
