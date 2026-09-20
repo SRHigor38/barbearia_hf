@@ -4,6 +4,7 @@
 # Este arquivo cria e configura a aplicação Flask.
 # Ele importa os modelos, registra os blueprints e inicia o servidor.
 
+import logging
 import os
 import sys
 
@@ -15,7 +16,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from flask import Flask, redirect, url_for, flash
+from flask import Flask, redirect, url_for, flash, request, has_request_context
 from flask_wtf.csrf import CSRFProtect
 from flask_bcrypt import Bcrypt
 from config import Config
@@ -25,6 +26,42 @@ from utils import formatar_telefone
 from models.admin import Admin
 from routes import main_bp, admin_bp
 from services.barbearia_service import criar_banco_e_popular
+
+
+def registrar_banco_em_uso(app):
+    """
+    Escreve nos logs (Render) qual banco está REALMENTE em uso.
+
+    Em produção deve aparecer sempre 'postgresql': se aparecer 'sqlite' no
+    Render, o disco é efêmero e os dados (agendamentos, clientes, planos,
+    financeiro) serão perdidos no próximo restart/sleep/redeploy.
+    A senha da conexão nunca é exibida nos logs.
+    """
+    from sqlalchemy.engine.url import make_url
+
+    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    try:
+        url = make_url(uri)
+        dialeto = url.get_backend_name()
+        destino = url.render_as_string(hide_password=True)
+    except Exception:
+        dialeto = "desconhecido"
+        destino = "(url invalida)"
+
+    app.logger.info(
+        "BANCO EM USO: motor=%s | destino=%s | APP_ENV=%s | PRODUCAO=%s",
+        dialeto,
+        destino,
+        app.config.get("APP_ENV"),
+        app.config.get("PRODUCAO"),
+    )
+
+    if app.config.get("PRODUCAO") and dialeto != "postgresql":
+        app.logger.error(
+            "ATENCAO: producao deveria usar PostgreSQL, mas o motor atual e '%s'. "
+            "Configure DATABASE_URL com a connectionString do PostgreSQL do Render.",
+            dialeto,
+        )
 
 
 def create_app():
@@ -44,8 +81,14 @@ def create_app():
     # Carrega as configurações da classe Config
     app.config.from_object(Config)
 
+    # Garante que os diagnósticos (nível INFO) apareçam nos logs do Render
+    app.logger.setLevel(logging.INFO)
+
     # Inicializa o banco de dados com a aplicação
     db.init_app(app)
+
+    # Registra nos logs qual banco está em uso (diagnóstico de persistência)
+    registrar_banco_em_uso(app)
 
     # Inicializa a proteção CSRF
     csrf = CSRFProtect(app)
@@ -75,7 +118,21 @@ def create_app():
 
     @app.errorhandler(500)
     def erro_interno(erro):
-        """Erro 500: Erro interno do servidor."""
+        """
+        Erro 500: Erro interno do servidor.
+
+        A mensagem exibida ao usuário continua genérica, mas a exceção REAL
+        é registrada no log (aparece no Render > Logs), com traceback, para
+        permitir o diagnóstico em produção.
+        """
+        excecao = getattr(erro, "original_exception", None)
+        caminho = request.path if has_request_context() else "(sem requisicao)"
+        app.logger.error(
+            "Erro interno (HTTP 500) em %s: %s",
+            caminho,
+            excecao if excecao is not None else erro,
+            exc_info=excecao if excecao is not None else True,
+        )
         flash("Erro interno do servidor. Tente novamente.", "error")
         return redirect(url_for("main.inicio"))
 
@@ -94,27 +151,42 @@ def create_app():
     # ============================================
     # CRIAÇÃO DO BANCO E DADOS INICIAIS
     # ============================================
+    # 100% NÃO DESTRUTIVO: apenas cria tabelas que faltam e insere
+    # registros padrão quando a tabela está vazia. Nenhum dado existente
+    # é apagado ou recriado (não existe drop_all / drop table / delete em massa).
     with app.app_context():
-        # Cria as tabelas e insere serviços iniciais
-        criar_banco_e_popular()
+        try:
+            # Cria as tabelas e insere serviços iniciais
+            criar_banco_e_popular()
 
-        # Aplica migrações seguras (adiciona colunas novas sem apagar dados)
-        aplicar_migracoes()
+            # Aplica migrações seguras (adiciona colunas novas sem apagar dados)
+            aplicar_migracoes()
 
-        # Cria admin padrão se não existir
-        if Admin.query.first() is None:
-            # Senha inicial configurável por ambiente (ADMIN_SENHA_INICIAL).
-            # Fallback "admin123" apenas para desenvolvimento local —
-            # EM PRODUÇÃO defina ADMIN_SENHA_INICIAL e/ou troque a senha
-            # em /admin/config após o primeiro login.
-            senha_inicial = os.getenv("ADMIN_SENHA_INICIAL", "admin123")
-            admin = Admin(
-                usuario="admin",
-                senha_hash=bcrypt.generate_password_hash(senha_inicial).decode("utf-8")
+            # Cria admin padrão se não existir
+            if Admin.query.first() is None:
+                # Senha inicial configurável por ambiente (ADMIN_SENHA_INICIAL).
+                # Fallback "admin123" apenas para desenvolvimento local —
+                # EM PRODUÇÃO defina ADMIN_SENHA_INICIAL e/ou troque a senha
+                # em /admin/config após o primeiro login.
+                senha_inicial = os.getenv("ADMIN_SENHA_INICIAL", "admin123")
+                admin = Admin(
+                    usuario="admin",
+                    senha_hash=bcrypt.generate_password_hash(senha_inicial).decode("utf-8")
+                )
+                db.session.add(admin)
+                db.session.commit()
+                print("Admin padrao criado: usuario=admin (defina ADMIN_SENHA_INICIAL em producao)")
+        except Exception:
+            # Registra a causa REAL no log do Render e interrompe a subida
+            # do serviço (fail-fast) em vez de subir com o banco incorreto.
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            app.logger.exception(
+                "Falha ao inicializar o banco de dados. Verifique DATABASE_URL."
             )
-            db.session.add(admin)
-            db.session.commit()
-            print("Admin padrao criado: usuario=admin (defina ADMIN_SENHA_INICIAL em producao)")
+            raise
 
     return app
 

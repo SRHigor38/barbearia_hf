@@ -163,13 +163,23 @@ barbearia_hf/
 
 ## 🗄 Banco de Datos
 
-- **Desarrollo local**: SQLite (`barbearia.db`) — funciona sin configurar nada.
-- **Producción**: PostgreSQL usando la variable de ambiente `DATABASE_URL`.
-- Las tablas se crean automáticamente al iniciar (`db.create_all()` + `aplicar_migracoes()`), preservando los datos existentes.
+| Ambiente | Banco | Definido por |
+|----------|-------|--------------|
+| **Local / desarrollo** | SQLite (`barbearia.db`) | fallback automático cuando `DATABASE_URL` no existe |
+| **Producción (Render)** | **PostgreSQL** (obligatorio) | variable `DATABASE_URL` inyectada por el Render |
+
+Reglas (sin comportamiento ambiguo):
+
+- `DATABASE_URL` **siempre** gana: el PostgreSQL del Render nunca es sustituido por SQLite.
+- En producción, si falta `DATABASE_URL` la aplicación **no arranca** y muestra un error explícito en el log. Es intencional: un SQLite en el Render Free se apaga en cada restart/sleep (disco efímero) y borra los agendamientos.
+- `DATABASE_URL` con `sqlite://` también es rechazada en producción.
+- `db.create_all()` + `aplicar_migracoes()` solo crean tablas/columnas que faltan: **nunca** usan `drop_all`, `TRUNCATE` ni `DELETE FROM`, jamás borran datos.
+- El arranque registra en el log el banco realmente usado: `BANCO EM USO: motor=postgresql | destino=...`.
+- Todos los datos (agendamientos, clientes, profesionales, servicios, planes, beneficios, financiero, despesas y configuraciones) viven en la base. Fotos/uploads son archivos en `static/` (no son base de datos).
 
 ```
-Flask → SQLAlchemy → PostgreSQL (producción)
-                    → SQLite (desarrollo)
+Flask → SQLAlchemy → PostgreSQL (producción, DATABASE_URL)
+                    → SQLite (solo local/desarrollo)
 ```
 
 ---
@@ -183,6 +193,10 @@ python teste_total.py          # 45 tests (planos, agendamientos, horarios)
 python teste_financeiro.py     # 29 tests (financiero, gastos, admin)
 python teste_planos.py         # 19 tests (planos)
 python teste_dias_semana.py    # dias de la semana
+python teste_ajustes_exibicao.py  # ajustes de exibición
+python teste_correcao_planos.py   # venta de planos sin agendamiento
+python teste_rotas_admin.py    # smoke test de las rutas /admin (incluye /admin/planos)
+python teste_persistencia.py   # PostgreSQL x SQLite, persistencia y startup no destructivo
 ```
 
 ---
@@ -204,13 +218,28 @@ python teste_dias_semana.py    # dias de la semana
 El proyecto está preparado para **Render + PostgreSQL**:
 
 - `Procfile` → `gunicorn app:app`
-- `render.yaml` → crea el servicio web y el banco PostgreSQL, inyectando `DATABASE_URL` y `SECRET_KEY`
+- `render.yaml` → crea el Web Service y el PostgreSQL, inyectando `DATABASE_URL` y `SECRET_KEY`
 - `DATABASE_URL` se lee desde el entorno (no está hardcodeada)
 
 Pasos en Render:
 1. Conectar el repositorio GitHub.
-2. Render creará el Web Service y el PostgreSQL con `render.yaml`.
-3. El banco se crea e inicializa automáticamente en el primer arranque.
+2. Render creará el Web Service y el PostgreSQL con `render.yaml` (o enlazar un PostgreSQL existente al Web Service).
+3. El banco se crea e inicializa automáticamente en el primer arranque (**sin borrar nada existente**).
+
+### Verificación obligatoria después del deploy
+
+1. **Logs del servicio** deben mostrar (al arrancar):
+   `BANCO EM USO: motor=postgresql | destino=... | APP_ENV=production | PRODUCAO=True`
+   Si aparece `motor=sqlite` en el Render, los datos se perderán en el próximo restart/sleep → falta `DATABASE_URL`.
+2. **Environment** del Web Service: `DATABASE_URL` (Add from database → connectionString) y `APP_ENV=production`.
+3. Prueba de persistencia: crear un agendamiento, dejar el servicio dormir (o hacer un redeploy) y confirmar que el agendamiento sigue existiendo.
+
+### ⚠️ Render Free (límites reales de la plataforma)
+
+- El **Web Service Free** entra en sleep tras ~15 minutos sin acceso y despierta en el próximo acceso. Los datos NO se pierden porque viven en PostgreSQL.
+- La **base PostgreSQL Free expira 30 días después de su creación**; tras 14 días de gracia el Render la elimina con todos los datos. Actualizar la base a un plan pago antes de eso.
+- Las bases Free **no tienen backups administrados**: hacer exportaciones periódicas.
+- Fotos/uploads quedan en el disco efímero del servicio y se pierden en redeploys (por eso los datos del sistema viven en el banco, no en archivos).
 
 ---
 

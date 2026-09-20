@@ -3,6 +3,16 @@
 # ============================================
 # Este arquivo permite deploy no Render com PostgreSQL
 # sem precisar de configuração manual.
+#
+# PERSISTÊNCIA DOS DADOS (IMPORTANTE):
+#   - Os dados do sistema (agendamentos, clientes, profissionais, serviços,
+#     planos, benefícios, financeiro, despesas e configurações) ficam no
+#     PostgreSQL gerenciado declarado em "databases" abaixo.
+#   - Por isso a variável DATABASE_URL é injetada no Web Service através de
+#     "fromDatabase" (connectionString). SEM ela o serviço NÃO sobe:
+#     config.py interrompe o start em produção para nunca usar SQLite
+#     (o disco do Render Free é efêmero e apagaria os dados no restart/sleep).
+#   - Fotos/uploads são arquivos (não são banco de dados) e seguem em static/.
 
 services:
   - type: web
@@ -16,12 +26,14 @@ services:
         value: 3.13.6
       - key: SECRET_KEY
         generateValue: true
+      # PostgreSQL gerenciado -> DATABASE_URL (obrigatória em produção)
       - key: DATABASE_URL
         fromDatabase:
           name: hf-barbearia-db
           property: connectionString
       - key: FLASK_DEBUG
         value: "false"
+      # APP_ENV=production: exige PostgreSQL e ativa cookies seguros (HTTPS)
       - key: APP_ENV
         value: "production"
 

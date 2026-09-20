@@ -194,7 +194,19 @@ Flask (create_app)
 
 ## 9. Estrategia SQLite / PostgreSQL
 
-- `config.py` lee `DATABASE_URL`. Si está definida, la usa (normalizando `postgres://` → `postgresql+psycopg2://`). Si no, usa SQLite local `barbearia.db`.
-- `db.create_all()` crea tablas nuevas; `aplicar_migracoes()` agrega columnas faltantes a `financeiro` (compatible SQLite via `PRAGMA table_info` y PostgreSQL via `information_schema`).
-- Los datos existentes se preservan: las migraciones solo agregan columnas, nunca borran.
+| Ambiente | Motor | Definición |
+|----------|-------|-----------|
+| Local / desarrollo | SQLite `barbearia.db` | fallback automático cuando `DATABASE_URL` no existe |
+| Producción (Render) | PostgreSQL | `DATABASE_URL` inyectada por el Render (**obligatoria**) |
+
+- `config.py` resuelve el banco sin ambigüedad:
+  - `PRODUCAO = APP_ENV=production or RENDER=true or PRODUCTION=true`.
+  - **Con** `DATABASE_URL`: se usa siempre (normalizando `postgres://` → `postgresql+psycopg2://`). El PostgreSQL del Render **nunca** es sustituido por SQLite.
+  - **Sin** `DATABASE_URL` en producción → `RuntimeError`: la aplicación no arranca (evita perder datos en un SQLite efímero).
+  - `DATABASE_URL` con `sqlite://` en producción → `RuntimeError`.
+  - **Sin** `DATABASE_URL` fuera de producción → SQLite local (desarrollo).
+- `app.py` registra en el log el motor realmente usado (`BANCO EM USO: motor=... | destino=...`) y registra la excepción real de cualquier HTTP 500 (`app.logger.error(..., exc_info=...)`), que antes quedaba oculta por el mensaje genérico.
+- `db.create_all()` crea solo tablas faltantes; `aplicar_migracoes()` agrega columnas faltantes en `financeiro` (PRAGMA en SQLite, `information_schema` en PostgreSQL) y elimina la constraint `NOT NULL` de `financeiro.agendamento_id` (`ALTER TABLE ... DROP NOT NULL`). La reconstrucción de tabla (RENAME + `DROP TABLE` del legado) existe **solo** en el camino SQLite/dev.
+- Nada en el arranque usa `drop_all`, `TRUNCATE` ni `DELETE FROM`: los datos existentes (agendamientos, clientes, profesionales, servicios, planes, beneficios, financeiro, despesas, configuraciones) se preservan siempre.
+- Cobertura automatizada: `teste_persistencia.py` (reglas anteriores, sin tocar producción) y `teste_rotas_admin.py` (smoke test de `/admin/*`, incluido `/admin/planos`).
 - `render.yaml` crea el PostgreSQL y `Procfile` ejecuta `gunicorn app:app`.

@@ -29,7 +29,10 @@ from services.barbearia_service import (
     buscar_plano_por_id,
     criar_plano,
     criar_cliente,
-    listar_planos,
+    # Alias obrigatório: a rota abaixo também se chama listar_planos().
+    # Sem o alias, listar_planos() dentro do corpo da rota chamaria a
+    # própria rota (RecursionError -> HTTP 500 em /admin/planos).
+    listar_planos as listar_planos_svc,
     listar_todos_profissionais,
     contar_agendamentos_profissional,
     buscar_profissional_por_id,
@@ -601,7 +604,7 @@ def listar_planos():
     if check:
         return check
 
-    planos = listar_planos()
+    planos = listar_planos_svc()
 
     # Atualiza status real (expirado/esgotado) para cada plano
     for plano in planos:
