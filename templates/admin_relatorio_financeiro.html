@@ -17,7 +17,7 @@
     <form method="GET" action="/admin/relatorios/financeiro" class="row g-3 align-items-end">
         <div class="col-md-2">
             <label>Período</label>
-            <select class="form-control" name="periodo">
+            <select class="form-control" id="periodo-select" name="periodo">
                 <option value="mes" {% if periodo == 'mes' %}selected{% endif %}>Este mês</option>
                 <option value="hoje" {% if periodo == 'hoje' %}selected{% endif %}>Hoje</option>
                 <option value="semana" {% if periodo == 'semana' %}selected{% endif %}>Esta semana</option>
@@ -27,11 +27,11 @@
         </div>
         <div class="col-md-3">
             <label>Data Inicial</label>
-            <input type="date" class="form-control" name="data_inicio" value="{{ data_inicio }}">
+            <input type="date" class="form-control data-personalizada" name="data_inicio" value="{{ data_inicio }}">
         </div>
         <div class="col-md-3">
             <label>Data Final</label>
-            <input type="date" class="form-control" name="data_fim" value="{{ data_fim }}">
+            <input type="date" class="form-control data-personalizada" name="data_fim" value="{{ data_fim }}">
         </div>
         <div class="col-md-2">
             <button type="submit" class="btn-gold w-100">
@@ -141,5 +141,14 @@
     <div class="admin-empty"><p>Nenhuma despesa no período.</p></div>
     {% endif %}
 </div>
+
+<script>
+// Ao editar qualquer data manualmente, o filtro passa a ser "Personalizado".
+document.querySelectorAll('.data-personalizada').forEach(function (input) {
+    input.addEventListener('input', function () {
+        document.getElementById('periodo-select').value = 'personalizado';
+    });
+});
+</script>
 
 {% endblock %}

@@ -160,6 +160,9 @@ def atualizar_pagamento_agendamento(agendamento_id, status, forma_pagamento,
       - Se forma == cartao, usa a taxa informada (>= 0).
       - Se mudar para dinheiro/pix, ZERA a taxa (evita dupla contagem).
       - Status "pago" é o único que entra no faturamento.
+      - data_pagamento: quando status == "pago", usa a data em que o pagamento
+        foi registrado (hoje); pendente/cancelado apenas mantêm um placeholder
+        de exibição (data do atendimento) e não entram na receita.
     Retorna (financeiro, None) ou (None, mensagem_erro).
     """
     if status not in ("pendente", "pago", "cancelado"):
@@ -194,7 +197,16 @@ def atualizar_pagamento_agendamento(agendamento_id, status, forma_pagamento,
     financeiro.forma_pagamento = forma if status != "pendente" else None
     if not financeiro.tipo:
         financeiro.tipo = "agendamento"
-    if not financeiro.data_pagamento:
+
+    # data_pagamento = data em que o pagamento foi REGISTRADO (hoje), e não a
+    # data do atendimento: um agendamento marcado como pago hoje entra no
+    # faturamento hoje, mesmo que o atendimento seja em uma data futura.
+    # Mesma regra já usada na venda/renovação de plano (data_pagamento = hoje).
+    if status == "pago":
+        financeiro.data_pagamento = date.today().strftime("%Y-%m-%d")
+    elif not financeiro.data_pagamento:
+        # Placeholder apenas para exibição enquanto não está pago.
+        # Não afeta o faturamento (só status "pago" entra na receita).
         if financeiro.agendamento and financeiro.agendamento.data:
             financeiro.data_pagamento = financeiro.agendamento.data
         else:

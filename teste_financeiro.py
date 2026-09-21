@@ -128,6 +128,35 @@ def rodar():
                   f"bruto: {ind2['receita_bruta']}")
         registrar("Lucro = 260 - 2 = 258", ind2["lucro_liquido"] == 258.0,
                   f"lucro: {ind2['lucro_liquido']}")
+        # T15b (regressão): data_pagamento = data em que o pagamento foi
+        # REGISTRADO (hoje), não a data do atendimento. Agendamento futuro pago
+        # hoje precisa entrar no faturamento de hoje.
+        from datetime import date as _date, timedelta as _timedelta
+
+        hoje_iso = _date.today().strftime("%Y-%m-%d")
+        data_futura = _date.today() + _timedelta(days=1)
+        while data_futura.isoweekday() == 7:  # evita domingo (horário reduzido)
+            data_futura += _timedelta(days=1)
+        data_futura_iso = data_futura.strftime("%Y-%m-%d")
+
+        ini_mes, fim_mes = periodo_para_datas("mes")
+        bruto_antes = calcular_financeiro(ini_mes, fim_mes)["receita_bruta"]
+
+        ag_futuro = criar_agendamento("Cliente Futuro", "(38) 99999-0013",
+                                      data_futura_iso, "10:00", "Corte",
+                                      profissional_id=prof.id)
+        atualizar_pagamento_agendamento(ag_futuro.id, "pago", "pix")
+        fin_futuro = Financeiro.query.filter_by(agendamento_id=ag_futuro.id).first()
+
+        registrar("Agendamento futuro pago hoje usa a data de hoje",
+                  fin_futuro is not None and fin_futuro.data_pagamento == hoje_iso,
+                  f"data_pagamento={fin_futuro.data_pagamento if fin_futuro else None} "
+                  f"(atendimento={data_futura_iso}, hoje={hoje_iso})")
+        bruto_depois = calcular_financeiro(ini_mes, fim_mes)["receita_bruta"]
+        registrar("Agendamento futuro pago hoje entra no faturamento do mes",
+                  round(bruto_depois - bruto_antes, 2) == 40.0,
+                  f"antes={bruto_antes} depois={bruto_depois}")
+
 # T16-T18: Administrador (senha e usuário)
         admin = Admin.query.first()
         bcrypt_app = app.bcrypt

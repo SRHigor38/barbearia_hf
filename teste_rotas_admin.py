@@ -180,6 +180,20 @@ def rodar():
     registrar("Nao exibe mensagem de erro interno",
               "Erro interno do servidor" not in html)
 
+    # --- Filtro de período: editar a data deve mudar para "Personalizado" ---
+    print("\n[3b] Filtro de periodo (datas customizadas)")
+    for caminho, nome in [("/admin/financeiro", "Financeiro"),
+                          ("/admin/relatorios/financeiro", "Relatorio financeiro")]:
+        status, resposta = _get(client, caminho)
+        html = resposta.get_data(as_text=True) if resposta is not None else ""
+        ok = (
+            'id="periodo-select"' in html
+            and "data-personalizada" in html
+            and 'addEventListener(\'input\'' in html
+        )
+        registrar(f"{nome}: datas editadas mudam o filtro para Personalizado",
+                  ok and status == 200, f"status={status}")
+
     # --- Rotas públicas continuam funcionando ---
     print("\n[4] Rotas publicas continuam funcionando")
     for rota, nome in ROTAS_PUBLICAS:
