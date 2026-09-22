@@ -114,7 +114,10 @@ barbearia_hf/
 ├── teste_planos.py               # Suite 19 tests de planos
 ├── teste_dias_semana.py          # Test de días semanales
 ├── teste_ajustes_exibicao.py     # Suite exibição (telefone/nome/pagamento)
-└── teste_correcao_planos.py      # Suite correção monetária dos planos (REAIS)
+├── teste_correcao_planos.py      # Suite correção monetária dos planos (REAIS)
+├── teste_rotas_admin.py          # Smoke test de las rutas /admin
+├── teste_persistencia.py         # PostgreSQL x SQLite y startup no destructivo
+└── teste_lgpd_exclusao_cliente.py  # Exclusión de TODOS los datos del cliente (LGPD)
 ```
 ---
 
@@ -197,6 +200,7 @@ python teste_ajustes_exibicao.py  # ajustes de exibición
 python teste_correcao_planos.py   # venta de planos sin agendamiento
 python teste_rotas_admin.py    # smoke test de las rutas /admin (incluye /admin/planos)
 python teste_persistencia.py   # PostgreSQL x SQLite, persistencia y startup no destructivo
+python teste_lgpd_exclusao_cliente.py  # exclusión de TODOS los datos del cliente (LGPD)
 ```
 
 ---
@@ -206,9 +210,11 @@ python teste_persistencia.py   # PostgreSQL x SQLite, persistencia y startup no 
 - Contraseñas almacenadas con **bcrypt** (nunca texto plano)
 - **CSRF** con Flask-WTF en todos los formularios (incluyendo excluir/alternar/cancelar/renovar vía POST)
 - Ações destrutivas (excluir, alternar status, cancelar/renovar plano) solo vía **POST + CSRF** (nunca GET)
-- Sesión protegida con `SECRET_KEY` (variable de ambiente)
+- Sesión protegida con `SECRET_KEY` (variable de ambiente). **En producción es obligatoria**: si falta, la aplicación **no arranca** (fail-fast, sin fallback predecible)
+- Primer arranque: el admin se crea con `ADMIN_SENHA_INICIAL`. **En producción es obligatoria**: sin ella el arranque falla en vez de crear el admin con la contraseña `admin123`
 - Rotas administrativas protegidas con `login_necessario()`
 - Subida de fotos validada (extensión permitida + magic bytes, nombre seguro UUID, límite 2MB via MAX_CONTENT_LENGTH)
+- **LGPD** (Lei 13.709/2018, art. 18, VI): `POST /admin/clientes/excluir/<id>` elimina el cliente y TODOS sus datos (agendamientos, financeiro, plan y renovaciones) en una única transacción; el botón está en `/admin/agendamentos` filtrando por teléfono, con confirmación
 - `.env` nunca se versiona (está en `.gitignore`)
 
 ---
@@ -224,14 +230,17 @@ El proyecto está preparado para **Render + PostgreSQL**:
 Pasos en Render:
 1. Conectar el repositorio GitHub.
 2. Render creará el Web Service y el PostgreSQL con `render.yaml` (o enlazar un PostgreSQL existente al Web Service).
-3. El banco se crea e inicializa automáticamente en el primer arranque (**sin borrar nada existente**).
+3. **Environment del Web Service (OBLIGATORIO antes del deploy)**:
+   `SECRET_KEY` (render.yaml usa `generateValue: true`) y `ADMIN_SENHA_INICIAL` (valor fuerte, definido a mano con `sync: false`).
+   Sin cualquiera de las dos la aplicación **no arranca** (fail-fast deliberado: evita sesiones forjables y el admin con contraseña `admin123`).
+4. El banco se crea e inicializa automáticamente en el primer arranque (**sin borrar nada existente**).
 
 ### Verificación obligatoria después del deploy
 
 1. **Logs del servicio** deben mostrar (al arrancar):
    `BANCO EM USO: motor=postgresql | destino=... | APP_ENV=production | PRODUCAO=True`
    Si aparece `motor=sqlite` en el Render, los datos se perderán en el próximo restart/sleep → falta `DATABASE_URL`.
-2. **Environment** del Web Service: `DATABASE_URL` (Add from database → connectionString) y `APP_ENV=production`.
+2. **Environment** del Web Service: `DATABASE_URL` (Add from database → connectionString), `APP_ENV=production`, `SECRET_KEY` y `ADMIN_SENHA_INICIAL`.
 3. Prueba de persistencia: crear un agendamiento, dejar el servicio dormir (o hacer un redeploy) y confirmar que el agendamiento sigue existiendo.
 
 ### ⚠️ Render Free (límites reales de la plataforma)

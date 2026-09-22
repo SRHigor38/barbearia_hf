@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 from models import db
 from models.servico import Servico
 from models.agendamento import Agendamento
+from models.cliente import Cliente
 from models.admin import Admin
 from models.despesa import Despesa
 from models.financeiro import Financeiro
@@ -20,6 +21,7 @@ from models.agendamento_servico import AgendamentoServico
 from models.plano_tipo_beneficio import PlanoTipoBeneficio
 from models.plano_beneficio import PlanoBeneficio
 from routes import admin_bp
+from utils import normalizar_telefone
 from services.barbearia_service import (
     contar_servicos,
     servico_existe_no_banco,
@@ -27,6 +29,7 @@ from services.barbearia_service import (
     buscar_plano_tipo_por_id,
     buscar_plano_por_cliente,
     buscar_plano_por_id,
+    buscar_cliente_por_telefone,
     criar_plano,
     criar_cliente,
     # Alias obrigatório: a rota abaixo também se chama listar_planos().
@@ -241,7 +244,9 @@ def listar_agendamentos():
     """
     Lista todos os agendamentos cadastrados,
     ordenados do mais recente para o mais antigo.
-    Suporta filtro por profissional (?profissional_id=).
+    Suporta filtro por profissional (?profissional_id=) e por telefone
+    (?telefone=). O telefone também localiza o cliente cadastrado,
+    habilitando a exclusão de todos os dados dele (LGPD) nesta tela.
     """
     check = login_necessario()
     if check:
@@ -250,9 +255,15 @@ def listar_agendamentos():
     # Filtro por profissional
     filtro_profissional = request.args.get("profissional_id", "")
 
+    # Filtro por telefone (aceita valor formatado: só os dígitos são usados)
+    filtro_telefone = request.args.get("telefone", "").strip()
+    digitos_telefone = normalizar_telefone(filtro_telefone)
+
     query = Agendamento.query
     if filtro_profissional.isdigit():
         query = query.filter_by(profissional_id=int(filtro_profissional))
+    if digitos_telefone:
+        query = query.filter(Agendamento.telefone.like(f"%{digitos_telefone}%"))
 
     agendamentos = query.order_by(
         Agendamento.data.desc(),
@@ -261,13 +272,57 @@ def listar_agendamentos():
 
     profissionais = listar_todos_profissionais()
 
+    # Cliente cadastrado correspondente ao telefone filtrado: habilita a
+    # ação destrutiva "Excluir cliente (LGPD)" na própria lista.
+    cliente_lgpd = (
+        buscar_cliente_por_telefone(filtro_telefone) if filtro_telefone else None
+    )
+
     return render_template(
         "admin_agendamentos.html",
         agendamentos=agendamentos,
         profissionais=profissionais,
         filtro_profissional=filtro_profissional,
+        filtro_telefone=filtro_telefone,
+        cliente_lgpd=cliente_lgpd,
         nome_forma_pagamento=nome_forma_pagamento
     )
+
+
+# ============================================
+# EXCLUSÃO DE AGENDAMENTO (LÓGICA REUTILIZÁVEL)
+# ============================================
+
+
+def remover_agendamento_e_dependentes(agendamento):
+    """
+    Remove um agendamento e tudo que depende dele, SEM commit — a transação
+    é fechada por quem chamou (o chamador decide quando commitar):
+      - devolve os benefícios do plano (se o agendamento foi feito com plano);
+      - remove o registro financeiro associado (mesma regra de sempre);
+      - remove o próprio agendamento (AgendamentoServico cai em cascata).
+
+    Reutilizado por excluir_agendamento() e por excluir_cliente_lgpd(),
+    para não duplicar a lógica de financeiro/exclusão.
+    """
+    if agendamento is None:
+        return False
+
+    # Se o agendamento usou plano, devolve os benefícios consumidos
+    # (somente finitos; ilimitados nunca foram decrementados).
+    if agendamento.plano_id:
+        if agendamento.servicos_relacionados:
+            servico_ids = [r.servico_id for r in agendamento.servicos_relacionados]
+            devolver_beneficios(agendamento.plano_id, servico_ids, commit=False)
+
+    # Remove o registro financeiro associado (se existir)
+    financeiro = Financeiro.query.filter_by(agendamento_id=agendamento.id).first()
+    if financeiro:
+        db.session.delete(financeiro)
+
+    # Remove o agendamento
+    db.session.delete(agendamento)
+    return True
 
 
 @admin_bp.route("/agendamentos/excluir/<int:agendamento_id>", methods=["POST"])
@@ -287,23 +342,98 @@ def excluir_agendamento(agendamento_id):
     if agendamento is None:
         flash("Agendamento não encontrado.", "error")
     else:
-        # Se o agendamento usou plano, devolve os benefícios consumidos
-        # (somente finitos; ilimitados nunca foram decrementados).
-        if agendamento.plano_id:
-            if agendamento.servicos_relacionados:
-                servico_ids = [r.servico_id for r in agendamento.servicos_relacionados]
-                devolver_beneficios(agendamento.plano_id, servico_ids)
-
-        # Remove o registro financeiro associado (se existir)
-        financeiro = Financeiro.query.filter_by(agendamento_id=agendamento_id).first()
-        if financeiro:
-            db.session.delete(financeiro)
-
-        # Remove o agendamento
-        db.session.delete(agendamento)
+        remover_agendamento_e_dependentes(agendamento)
         db.session.commit()
         flash("Agendamento e registro financeiro excluídos com sucesso.", "success")
 
+    return redirect(url_for("admin.listar_agendamentos"))
+
+
+# ============================================
+# LGPD — EXCLUSÃO DOS DADOS DE UM CLIENTE
+# ============================================
+# Direito de eliminação dos dados pessoais (Lei 13.709/2018, art. 18, VI):
+# apaga o Cliente e TODOS os dados ligados a ele (agendamentos, financeiro,
+# plano, benefícios e histórico de renovação) em UMA única transação.
+
+
+@admin_bp.route("/clientes/excluir/<int:cliente_id>", methods=["POST"])
+def excluir_cliente_lgpd(cliente_id):
+    """
+    Exclui um cliente e todos os dados vinculados a ele (LGPD).
+
+    Ordem obrigatória (integridade referencial):
+      1. Agendamentos do cliente (cliente_id) e os agendamentos do plano
+         (plano_id), reaproveitando remover_agendamento_e_dependentes():
+         devolve benefícios, apaga o financeiro do agendamento e o agendamento.
+      2. Plano do cliente + o financeiro de venda/renovação ligado a ele
+         (os PlanoBeneficio caem em cascata pelo relacionamento existente).
+      3. O próprio registro Cliente.
+
+    Commit SOMENTE no final: qualquer erro no meio faz rollback e nada é
+    removido. POST + CSRF: mutação nunca via GET.
+    """
+    check = login_necessario()
+    if check:
+        return check
+
+    cliente = Cliente.query.get(cliente_id)
+    if cliente is None:
+        flash("Cliente não encontrado.", "error")
+        return redirect(url_for("admin.listar_agendamentos"))
+
+    agendamentos_removidos = 0
+    planos_removidos = 0
+
+    try:
+        plano = buscar_plano_por_cliente(cliente.id)
+
+        # 1) Agendamentos do cliente (cliente_id)
+        agendamentos = Agendamento.query.filter_by(cliente_id=cliente.id).all()
+
+        # ... e os agendamentos ligados ao plano do cliente
+        # (agendamento.plano_id -> plano.id precisa sair antes do plano,
+        # senão o PostgreSQL recusaria a exclusão do plano).
+        if plano is not None:
+            ids_coletados = {agendamento.id for agendamento in agendamentos}
+            for agendamento in Agendamento.query.filter_by(plano_id=plano.id).all():
+                if agendamento.id not in ids_coletados:
+                    agendamentos.append(agendamento)
+                    ids_coletados.add(agendamento.id)
+
+        for agendamento in agendamentos:
+            remover_agendamento_e_dependentes(agendamento)
+            agendamentos_removidos += 1
+
+        # 2) Plano do cliente (venda + histórico de renovação no financeiro)
+        if plano is not None:
+            for financeiro in Financeiro.query.filter_by(plano_id=plano.id).all():
+                db.session.delete(financeiro)
+            db.session.delete(plano)
+            planos_removidos = 1
+
+        # 3) Cliente
+        db.session.delete(cliente)
+
+        # Commit único: tudo ou nada
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception(
+            "Falha ao excluir os dados do cliente (LGPD) id=%s", cliente_id
+        )
+        flash(
+            "Não foi possível excluir os dados do cliente. Nada foi removido.",
+            "error",
+        )
+        return redirect(url_for("admin.listar_agendamentos"))
+
+    flash(
+        "Dados do cliente excluídos (LGPD): "
+        f"{agendamentos_removidos} agendamento(s) e {planos_removidos} plano(s) "
+        "removido(s), junto com o financeiro relacionado.",
+        "success",
+    )
     return redirect(url_for("admin.listar_agendamentos"))
 
 

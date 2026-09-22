@@ -983,13 +983,16 @@ def listar_planos():
     return Plano.query.order_by(Plano.criado_em.desc()).all()
 
 
-def atualizar_status_plano(plano):
+def atualizar_status_plano(plano, commit=True):
     """
     Atualiza o status do plano com base nas regras atuais:
     - CANCELADO: se foi cancelado manualmente
     - EXPIRADO: se a validade passou
     - ESGOTADO: se todos os benefícios finitos acabaram
     - ATIVO: caso contrário
+
+    commit=False deixa a alteração PENDENTE na transação do chamador
+    (usado pela exclusão de dados do cliente/LGPD, que commita só no final).
     """
     if plano.status == "CANCELADO":
         return plano.status
@@ -1006,7 +1009,8 @@ def atualizar_status_plano(plano):
     else:
         plano.status = "ATIVO"
 
-    db.session.commit()
+    if commit:
+        db.session.commit()
     return plano.status
 
 
@@ -1074,10 +1078,13 @@ def consumir_beneficios(plano_id, servico_ids):
     return True
 
 
-def devolver_beneficios(plano_id, servico_ids):
+def devolver_beneficios(plano_id, servico_ids, commit=True):
     """
     Devolve 1 unidade de cada benefício para os serviços especificados.
     Só devolve benefícios finitos (não ilimitados).
+
+    commit=False deixa a alteração PENDENTE na transação do chamador
+    (usado pela exclusão de dados do cliente/LGPD, que commita só no final).
     """
     plano = buscar_plano_por_id(plano_id)
     if plano is None:
@@ -1089,7 +1096,7 @@ def devolver_beneficios(plano_id, servico_ids):
             if beneficio.quantidade_utilizada > 0:
                 beneficio.quantidade_utilizada -= 1
 
-    atualizar_status_plano(plano)
+    atualizar_status_plano(plano, commit=commit)
     return True
 
 

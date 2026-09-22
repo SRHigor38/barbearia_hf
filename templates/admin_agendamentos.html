@@ -9,10 +9,10 @@
     </div>
 </div>
 
-<!-- Filtro por profissional -->
+<!-- Filtro por profissional e telefone -->
 <div class="admin-card mb-4">
     <form method="GET" action="/admin/agendamentos" class="row g-3 align-items-end">
-        <div class="col-md-6">
+        <div class="col-md-3">
             <label>Profissional</label>
             <select class="form-control" name="profissional_id" onchange="this.form.submit()">
                 <option value="">Todos os profissionais</option>
@@ -22,6 +22,11 @@
                 </option>
                 {% endfor %}
             </select>
+        </div>
+        <div class="col-md-3">
+            <label>Telefone do cliente</label>
+            <input type="text" class="form-control" name="telefone"
+                   value="{{ filtro_telefone }}" placeholder="(38) 99138-8394">
         </div>
         <div class="col-md-3">
             <button type="submit" class="btn-outline-gold w-100" style="padding:8px;font-size:13px;">
@@ -35,6 +40,34 @@
         </div>
     </form>
 </div>
+
+<!-- LGPD: exclusão de TODOS os dados do cliente localizado pelo telefone -->
+{% if cliente_lgpd %}
+<div class="admin-card mb-4" style="border:1px solid #dc3545;">
+    <div class="row g-3 align-items-center">
+        <div class="col-md-8">
+            <h5 class="mb-1">
+                <i class="bi bi-shield-exclamation text-danger me-2"></i>Exclusão de dados (LGPD)
+            </h5>
+            <p class="mb-0" style="font-size:13px;color:#999;">
+                Cliente cadastrado: <strong>{{ cliente_lgpd.nome }}</strong>
+                — {{ cliente_lgpd.telefone|formatar_telefone }} (ID #{{ cliente_lgpd.id }}).
+                A exclusão remove o cliente, todos os agendamentos, o plano e o
+                financeiro vinculado. Ação irreversível (Lei 13.709/2018, art. 18, VI).
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <form method="POST" action="/admin/clientes/excluir/{{ cliente_lgpd.id }}"
+                  onsubmit="return confirm('Excluir este cliente (LGPD) e TODOS os dados ligados a ele (agendamentos, plano e financeiro)? Esta ação é irreversível.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn-danger-custom" type="submit">
+                    <i class="bi bi-shield-exclamation me-1"></i>Excluir cliente (LGPD)
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="admin-card">
     {% if agendamentos %}

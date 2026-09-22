@@ -12,6 +12,10 @@
 #      (sem drop_all / TRUNCATE / DELETE FROM / DROP TABLE nas tabelas de
 #      negócio) e reiniciar o serviço NÃO apaga agendamentos, despesas,
 #      serviços, profissionais nem planos.
+#   7. SECRET_KEY é OBRIGATÓRIA em produção (fail-fast): o fallback
+#      "fallback-dev-key" existe apenas no ambiente local.
+#   8. O startup não cria o admin padrão com a senha "admin123" em produção
+#      sem ADMIN_SENHA_INICIAL (fail-fast em app.py).
 #
 # Executar: python teste_persistencia.py
 #
@@ -47,20 +51,31 @@ def registrar(nome, resultado, detalhe=""):
 # CONTROLE DE AMBIENTE (ISOLADO E REVERSÍVEL)
 # ============================================
 
-VARIAVEIS = ("DATABASE_URL", "APP_ENV", "RENDER", "PRODUCTION")
+VARIAVEIS = ("DATABASE_URL", "APP_ENV", "RENDER", "PRODUCTION", "SECRET_KEY")
+
+# Chave usada nos cenários de produção (nunca é uma chave real de produção)
+SECRET_KEY_VALIDA = "chave-de-teste-forte-nao-usada-em-producao"
 
 
 def _ambiente_atual():
     return {chave: os.environ.get(chave) for chave in VARIAVEIS}
 
 
-def _definir_ambiente(database_url=None, app_env=None, render=None, production=None):
-    """Define (ou remove) as variáveis que a configuração de banco usa."""
+def _definir_ambiente(database_url=None, app_env=None, render=None, production=None,
+                      secret_key=SECRET_KEY_VALIDA):
+    """
+    Define (ou remove) as variáveis que a configuração usa.
+
+    secret_key=None simula a AUSÊNCIA da variável (usado para provar o
+    fail-fast em produção). O padrão é uma chave válida, para que os
+    cenários de banco não esbarrem na exigência de SECRET_KEY.
+    """
     valores = {
         "DATABASE_URL": database_url,
         "APP_ENV": app_env,
         "RENDER": render,
         "PRODUCTION": production,
+        "SECRET_KEY": secret_key,
     }
     for chave, valor in valores.items():
         if valor is None:
@@ -160,6 +175,27 @@ def testes_configuracao():
     erro, cfg = config_ou_erro(database_url=SQLITE_URL, app_env="development")
     registrar("Local com DATABASE_URL SQLite continua funcionando",
               cfg is not None and cfg.SQLALCHEMY_DATABASE_URI == SQLITE_URL)
+
+    # --- Produção SEM SECRET_KEY: fail-fast (nunca chave previsível) ---
+    erro, cfg = config_ou_erro(
+        database_url=PG_URL, app_env="production", secret_key=None
+    )
+    registrar("Producao sem SECRET_KEY falha (nao sobe com chave previsivel)",
+              cfg is None and erro is not None)
+    registrar("Mensagem de erro orienta a configurar SECRET_KEY",
+              bool(erro) and "SECRET_KEY" in erro and "RENDER" in erro.upper())
+
+    # --- Produção COM SECRET_KEY: respeita o valor do ambiente ---
+    erro, cfg = config_ou_erro(
+        database_url=PG_URL, app_env="production", secret_key=SECRET_KEY_VALIDA
+    )
+    registrar("Producao usa a SECRET_KEY do ambiente (nao o fallback)",
+              cfg is not None and cfg.SECRET_KEY == SECRET_KEY_VALIDA)
+
+    # --- Local sem SECRET_KEY: fallback permitido só em desenvolvimento ---
+    erro, cfg = config_ou_erro(app_env="development", secret_key=None)
+    registrar("Local sem SECRET_KEY usa o fallback de desenvolvimento",
+              cfg is not None and cfg.SECRET_KEY == "fallback-dev-key")
 
 
 # ============================================
@@ -347,6 +383,28 @@ def testes_estaticos():
     registrar(
         "Fallback SQLite existe apenas fora da producao",
         "elif PRODUCAO:" in fonte_config and 'SQLALCHEMY_DATABASE_URI = "sqlite:///"' in fonte_config,
+    )
+
+    # SECRET_KEY: exigência de produção vive na própria configuração
+    registrar(
+        "config.py exige SECRET_KEY em producao (fail-fast)",
+        "MSG_SEM_SECRET_KEY" in fonte_config
+        and "if not SECRET_KEY and PRODUCAO:" in fonte_config
+        and 'SECRET_KEY = "fallback-dev-key"' in fonte_config,
+    )
+
+    # app.py nunca cria o admin padrão com senha previsível em produção:
+    # sem ADMIN_SENHA_INICIAL o startup falha (mesmo fail-fast do banco).
+    fonte_create_app = inspect.getsource(app_mod.create_app)
+    registrar(
+        "Startup exige ADMIN_SENHA_INICIAL em producao (fail-fast)",
+        "ADMIN_SENHA_INICIAL" in fonte_create_app
+        and "MSG_SEM_ADMIN_SENHA" in fonte_create_app
+        and "Config.PRODUCAO" in fonte_create_app,
+    )
+    registrar(
+        "Fallback 'admin123' existe apenas fora da producao",
+        'senha_inicial = "admin123"' in fonte_create_app,
     )
 
 

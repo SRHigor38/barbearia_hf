@@ -24,8 +24,17 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.6
+      # SECRET_KEY assina sessões/CSRF. OBRIGATÓRIA em produção:
+      # config.py interrompe o start se ela não existir (fail-fast).
       - key: SECRET_KEY
         generateValue: true
+      # ADMIN_SENHA_INICIAL: senha do admin criado no primeiro boot.
+      # OBRIGATÓRIA em produção: app.py interrompe o start se ela não existir
+      # (nunca cria o admin com a senha padrão "admin123").
+      # sync: false = o valor NÃO fica no repositório; definir no Dashboard
+      # (Web Service > Environment) ANTES do primeiro deploy.
+      - key: ADMIN_SENHA_INICIAL
+        sync: false
       # PostgreSQL gerenciado -> DATABASE_URL (obrigatória em produção)
       - key: DATABASE_URL
         fromDatabase:

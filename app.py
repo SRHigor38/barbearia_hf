@@ -19,7 +19,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 from flask import Flask, redirect, url_for, flash, request, has_request_context
 from flask_wtf.csrf import CSRFProtect
 from flask_bcrypt import Bcrypt
-from config import Config
+from config import Config, MSG_SEM_ADMIN_SENHA
 from models import db
 from services.financeiro_service import formatar_moeda, aplicar_migracoes
 from utils import formatar_telefone
@@ -165,10 +165,21 @@ def create_app():
             # Cria admin padrão se não existir
             if Admin.query.first() is None:
                 # Senha inicial configurável por ambiente (ADMIN_SENHA_INICIAL).
-                # Fallback "admin123" apenas para desenvolvimento local —
-                # EM PRODUÇÃO defina ADMIN_SENHA_INICIAL e/ou troque a senha
-                # em /admin/config após o primeiro login.
-                senha_inicial = os.getenv("ADMIN_SENHA_INICIAL", "admin123")
+                # EM PRODUÇÃO ela é OBRIGATÓRIA: criar o admin com a senha
+                # padrão "admin123" deixaria o painel aberto para qualquer
+                # pessoa. O fallback continua valendo apenas no ambiente
+                # LOCAL/desenvolvimento.
+                senha_inicial = (os.getenv("ADMIN_SENHA_INICIAL") or "").strip()
+
+                if not senha_inicial and Config.PRODUCAO:
+                    # Fail-fast: o except abaixo faz rollback e interrompe a
+                    # subida do serviço em vez de criar um admin inseguro.
+                    raise RuntimeError(MSG_SEM_ADMIN_SENHA)
+
+                if not senha_inicial:
+                    # Fallback APENAS para desenvolvimento local
+                    senha_inicial = "admin123"
+
                 admin = Admin(
                     usuario="admin",
                     senha_hash=bcrypt.generate_password_hash(senha_inicial).decode("utf-8")
@@ -184,7 +195,8 @@ def create_app():
             except Exception:
                 pass
             app.logger.exception(
-                "Falha ao inicializar o banco de dados. Verifique DATABASE_URL."
+                "Falha ao inicializar a aplicacao (fail-fast proposital). "
+                "Verifique DATABASE_URL, SECRET_KEY e ADMIN_SENHA_INICIAL."
             )
             raise
 

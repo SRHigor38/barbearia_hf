@@ -50,6 +50,31 @@ MSG_DATABASE_URL_SQLITE = (
     "apenas no ambiente LOCAL/desenvolvimento."
 )
 
+MSG_SEM_SECRET_KEY = (
+    "CONFIGURACAO INVALIDA: a aplicacao iniciou em PRODUCAO sem SECRET_KEY.\n"
+    "A SECRET_KEY assina os cookies de sessao, o login do admin e os tokens\n"
+    "CSRF. Subir com um valor previsivel (ou com o fallback de\n"
+    "desenvolvimento) permitiria FORJAR uma sessao de administrador.\n"
+    "O fallback \"fallback-dev-key\" existe APENAS no ambiente LOCAL.\n"
+    "COMO CORRIGIR NO RENDER: Dashboard > Web Service > Environment >\n"
+    "adicionar a variavel SECRET_KEY com um valor aleatorio forte\n"
+    "(botao Generate Value) ou aplicar o render.yaml (generateValue: true).\n"
+    "A variavel precisa existir ANTES do deploy, senao o servico nao sobe\n"
+    "(fail-fast proposital)."
+)
+
+MSG_SEM_ADMIN_SENHA = (
+    "CONFIGURACAO INVALIDA: a aplicacao iniciou em PRODUCAO sem\n"
+    "ADMIN_SENHA_INICIAL e o admin padrao ainda nao existe.\n"
+    "Criar o administrador com a senha padrao \"admin123\" deixaria o painel\n"
+    "aberto para qualquer pessoa.\n"
+    "COMO CORRIGIR NO RENDER: Dashboard > Web Service > Environment >\n"
+    "definir a variavel ADMIN_SENHA_INICIAL com uma senha forte ANTES do\n"
+    "primeiro deploy. Depois do primeiro login a senha pode ser alterada em\n"
+    "/admin/config. No ambiente LOCAL/desenvolvimento o fallback\n"
+    "\"admin123\" continua valendo."
+)
+
 
 class Config:
     """
@@ -67,9 +92,20 @@ class Config:
     )
 
     # Chave secreta para assinar cookies, sessões e tokens CSRF
-    # Em produção (Render) vem de variável de ambiente com generateValue.
-    # O fallback existe apenas para desenvolvimento local.
-    SECRET_KEY = os.getenv("SECRET_KEY", "fallback-dev-key")
+    # Em produção (Render) vem de variável de ambiente (render.yaml declara
+    # SECRET_KEY com generateValue: true). O fallback existe apenas no
+    # ambiente LOCAL/desenvolvimento.
+    SECRET_KEY = (os.getenv("SECRET_KEY") or "").strip()
+
+    if not SECRET_KEY and PRODUCAO:
+        # Fail-fast: nunca subir em produção com uma chave previsível — isso
+        # comprometeria sessões, cookies assinados e tokens CSRF (qualquer
+        # pessoa poderia forjar uma sessão de administrador).
+        raise RuntimeError(MSG_SEM_SECRET_KEY)
+
+    if not SECRET_KEY:
+        # Fallback APENAS para desenvolvimento local
+        SECRET_KEY = "fallback-dev-key"
 
     # Cookies de sessão endurecidos (produção exige HTTPS no Render)
     SESSION_COOKIE_HTTPONLY = True
