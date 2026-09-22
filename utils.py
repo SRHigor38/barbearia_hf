@@ -6,6 +6,8 @@
 # chaves alternativas de busca. Não altera regras de negócio.
 
 import re
+from datetime import timezone
+from zoneinfo import ZoneInfo  # já vem no Python 3.9+, não precisa instalar nada
 
 
 def normalizar_telefone(telefone):
@@ -43,6 +45,32 @@ def formatar_telefone(telefone):
     if len(digitos) == 10:
         return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
     return digitos
+
+
+# ============================================
+# DATA/HORA: CONVERSÃO PARA EXIBIÇÃO (BRASÍLIA)
+# ============================================
+# Os datetimes são GRAVADOS em UTC (ex: Agendamento.criado_em = utcnow).
+# Isso NÃO muda: UTC é o formato correto de armazenamento. A conversão para o
+# horário de Brasília acontece SOMENTE na exibição, evitando que um registro
+# criado às 22:05 (horário local) apareça com a data do dia seguinte.
+FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
+
+
+def formatar_data_hora_br(dt):
+    """
+    Converte um datetime UTC (ex: Agendamento.criado_em) para o horário de
+    Brasília e formata como dd/mm/aaaa HH:MM — apenas para EXIBIÇÃO.
+    Não altera o valor salvo no banco (continua em UTC).
+
+    Aceita datetime naive (interpretado como UTC, que é o default=utcnow dos
+    models) e datetime com tzinfo. None devolve string vazia.
+    """
+    if dt is None:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(FUSO_BRASIL).strftime("%d/%m/%Y %H:%M")
 
 
 # Conectores portugueses que ficam em minúsculo no meio do nome.

@@ -22,7 +22,7 @@ from flask_bcrypt import Bcrypt
 from config import Config, MSG_SEM_ADMIN_SENHA
 from models import db
 from services.financeiro_service import formatar_moeda, aplicar_migracoes
-from utils import formatar_telefone
+from utils import formatar_telefone, formatar_data_hora_br
 from models.admin import Admin
 from routes import main_bp, admin_bp
 from services.barbearia_service import criar_banco_e_popular
@@ -77,6 +77,10 @@ def create_app():
 
     # Registra o filtro global de formatação de telefone (padrão brasileiro)
     app.jinja_env.filters["formatar_telefone"] = formatar_telefone
+
+    # Registra o filtro global de data/hora em horário de Brasília.
+    # Os datetimes são gravados em UTC (utcnow) e convertidos só na exibição.
+    app.jinja_env.filters["formatar_data_hora_br"] = formatar_data_hora_br
 
     # Carrega as configurações da classe Config
     app.config.from_object(Config)

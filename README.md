@@ -117,7 +117,9 @@ barbearia_hf/
 ├── teste_correcao_planos.py      # Suite correção monetária dos planos (REAIS)
 ├── teste_rotas_admin.py          # Smoke test de las rutas /admin
 ├── teste_persistencia.py         # PostgreSQL x SQLite y startup no destructivo
-└── teste_lgpd_exclusao_cliente.py  # Exclusión de TODOS los datos del cliente (LGPD)
+├── teste_lgpd_exclusao_cliente.py  # Exclusión de TODOS los datos del cliente (LGPD)
+├── teste_fuso_horario.py         # "Criado em" en horario de Brasília (UTC -> BRT)
+└── teste_data_pagamento.py       # data_pagamento = fecha del registro (no del turno)
 ```
 ---
 
@@ -201,6 +203,8 @@ python teste_correcao_planos.py   # venta de planos sin agendamiento
 python teste_rotas_admin.py    # smoke test de las rutas /admin (incluye /admin/planos)
 python teste_persistencia.py   # PostgreSQL x SQLite, persistencia y startup no destructivo
 python teste_lgpd_exclusao_cliente.py  # exclusión de TODOS los datos del cliente (LGPD)
+python teste_fuso_horario.py      # "Criado em" convertido a horario de Brasília
+python teste_data_pagamento.py    # data_pagamento = fecha del registro del pago
 ```
 
 ---
@@ -214,7 +218,9 @@ python teste_lgpd_exclusao_cliente.py  # exclusión de TODOS los datos del clien
 - Primer arranque: el admin se crea con `ADMIN_SENHA_INICIAL`. **En producción es obligatoria**: sin ella el arranque falla en vez de crear el admin con la contraseña `admin123`
 - Rotas administrativas protegidas con `login_necessario()`
 - Subida de fotos validada (extensión permitida + magic bytes, nombre seguro UUID, límite 2MB via MAX_CONTENT_LENGTH)
-- **LGPD** (Lei 13.709/2018, art. 18, VI): `POST /admin/clientes/excluir/<id>` elimina el cliente y TODOS sus datos (agendamientos, financeiro, plan y renovaciones) en una única transacción; el botón está en `/admin/agendamentos` filtrando por teléfono, con confirmación
+- **LGPD** (Lei 13.709/2018, art. 18, VI): `POST /admin/clientes/excluir/<id>` elimina el cliente y TODOS sus datos (agendamientos, financeiro, plan y renovaciones) en una única transacción. El botón "Excluir cliente (LGPD)" (con `confirm()`) está disponible en **dos** pantallas: `/admin/agendamentos` (filtrando por teléfono) y `/admin/planos` (al lado de "Cancelar" — que solo cancela el plan y **mantiene** el cadastro del cliente)
+- **Fechas/horas**: los datetimes se guardan en **UTC** y se convierten al horario de Brasília **solo en la exibición** (filtro Jinja `formatar_data_hora_br`), evitando que un registro de las 22h aparezca en el día siguiente
+- **Faturamento**: solo `status = "pago"` entra en la receita y la `data_pagamento` es la **fecha del registro del pago** (no la del turno), igual que en la venta/renovación de plan
 - `.env` nunca se versiona (está en `.gitignore`)
 
 ---

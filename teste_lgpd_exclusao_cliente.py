@@ -69,6 +69,7 @@ def rodar():
     TELEFONE = "38991380099"
     TELEFONE_OUTRO = "38991380011"
     TELEFONE_VAZIO = "38991380000"
+    TELEFONE_PLANO = "38991380077"  # cliente do fluxo da tela de Planos
 
     # ------------------------------------------------------------
     # Massa de dados: cliente LGPD com agendamento pago + plano + renovação
@@ -269,6 +270,78 @@ def rodar():
         registrar("Financeiro do outro cliente continua no banco",
                   Financeiro.query.filter_by(
                       agendamento_id=ids["outro_agendamento"]).count() == 1)
+
+    # ------------------------------------------------------------
+    # 7) Fluxo da tela /admin/planos (botão ao lado de "Cancelar")
+    # ------------------------------------------------------------
+    print("\n[7] Exclusao disparada a partir de /admin/planos")
+    with app.app_context():
+        profissional_plano = listar_profissionais()[0]
+        cliente_plano = criar_cliente(
+            nome="Cliente Plano Lgpd", telefone=TELEFONE_PLANO
+        )
+        plano_lgpd = criar_plano(
+            cliente_id=cliente_plano.id,
+            plano_tipo_id=buscar_plano_tipo_por_nome("Light").id,
+            dias_permitidos="1,2,3,4,5,6,7",
+        )
+        data_agendamento = (datetime.now() + timedelta(days=12)).strftime("%Y-%m-%d")
+        ag_plano, erro_plano = criar_agendamento_plano(
+            cliente_id=cliente_plano.id,
+            plano_id=plano_lgpd.id,
+            data=data_agendamento,
+            horario="16:00",
+            profissional_id=profissional_plano.id,
+        )
+        ids_planos = {
+            "cliente": cliente_plano.id,
+            "plano": plano_lgpd.id,
+            "agendamento": ag_plano.id if ag_plano else -1,
+        }
+        registrar("Cliente com plano e agendamento criado (fluxo de Planos)",
+                  cliente_plano is not None and plano_lgpd is not None
+                  and ag_plano is not None, erro_plano or "")
+
+    pagina_planos = client.get("/admin/planos")
+    html_planos = pagina_planos.get_data(as_text=True)
+    registrar("/admin/planos responde 200", pagina_planos.status_code == 200)
+    registrar("Botao 'Excluir cliente (LGPD)' aparece na lista de planos",
+              "Excluir cliente (LGPD)" in html_planos)
+    registrar("Form aponta para a rota que JA existe",
+              f"/admin/clientes/excluir/{ids_planos['cliente']}" in html_planos,
+              f"esperado=/admin/clientes/excluir/{ids_planos['cliente']}")
+    registrar("Nenhuma rota nova de exclusao foi criada em Planos",
+              "/admin/planos/excluir" not in html_planos)
+    registrar("'Cancelar' continua na mesma tela",
+              f"/admin/planos/cancelar/{ids_planos['plano']}" in html_planos)
+    registrar("Confirmacao avisa que e irreversivel e apaga o plano",
+              "IRREVERSIVEL" in html_planos
+              and "apagar o CADASTRO do cliente" in html_planos
+              and "plano dele" in html_planos)
+    registrar("Acoes visualmente distintas (LGPD x Cancelar)",
+              "btn-lgpd-custom" in html_planos
+              and 'class="btn-danger-custom"' in html_planos)
+    registrar("LGPD usa icone diferente do Cancelar (shield vs x-circle)",
+              "bi-shield-exclamation" in html_planos
+              and "bi-x-circle" in html_planos)
+
+    resposta_planos = client.post(
+        f"/admin/clientes/excluir/{ids_planos['cliente']}", follow_redirects=True
+    )
+    registrar("POST a partir do fluxo de Planos responde 200",
+              resposta_planos.status_code == 200)
+    with app.app_context():
+        registrar("Cliente do plano removido",
+                  Cliente.query.get(ids_planos["cliente"]) is None)
+        registrar("Plano removido",
+                  Plano.query.get(ids_planos["plano"]) is None)
+        registrar("Agendamento do plano removido",
+                  Agendamento.query.get(ids_planos["agendamento"]) is None)
+        registrar("Financeiro do plano removido",
+                  Financeiro.query.filter_by(
+                      plano_id=ids_planos["plano"]).count() == 0)
+        registrar("Cliente do passo 6 nao foi afetado",
+                  Cliente.query.get(ids["outro_cliente"]) is not None)
 
     print("\n" + "=" * 70)
     passou = sum(1 for _, status, _ in RESULTADOS if status == "PASS")

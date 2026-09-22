@@ -103,7 +103,7 @@
                             <span style="color:#666;">—</span>
                         {% endif %}
                     </td>
-                    <td>{{ agendamento.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>{{ agendamento.criado_em|formatar_data_hora_br }}</td>
                     <td>
                         {% set fin = agendamento.financeiro %}
                         {% if fin and fin.status == 'pago' %}

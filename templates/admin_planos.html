@@ -97,6 +97,17 @@
                                 <i class="bi bi-x-circle me-1"></i>Cancelar
                             </button>
                         </form>
+                        <!-- LGPD: apaga o CADASTRO do cliente (e o plano dele).
+                             Diferente de "Cancelar", que só cancela o plano. -->
+                        <form method="POST" action="/admin/clientes/excluir/{{ plano.cliente_id }}"
+                              style="display:inline;"
+                              onsubmit="return confirm('EXCLUIR CLIENTE (LGPD) — acao IRREVERSIVEL. Vai apagar o CADASTRO do cliente, o plano dele, os agendamentos e o financeiro vinculado. Diferente de Cancelar plano, que apenas cancela o plano e mantem o cliente. Deseja continuar?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-lgpd-custom"
+                                    title="Ação irreversível: apaga o cadastro do cliente e todos os dados dele (LGPD)">
+                                <i class="bi bi-shield-exclamation me-1"></i>Excluir cliente (LGPD)
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}
