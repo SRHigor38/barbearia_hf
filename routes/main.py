@@ -8,8 +8,9 @@
 # Fluxo de agendamento com PLANO:
 #   1. Telefone + Chave → 2. Dia → 3. Horário → 4. Profissional → 5. Agendamento direto
 
-from flask import render_template, request, redirect, url_for, flash, jsonify, session
+from flask import render_template, request, redirect, url_for, flash, jsonify, session, make_response
 from routes import main_bp
+from utils import mascarar_telefone
 from services.barbearia_service import (
     listar_servicos_do_banco,
     contar_servicos,
@@ -36,6 +37,7 @@ from services.barbearia_service import (
     dia_permitido_plano,
     data_dentro_validade,
     atualizar_status_plano,
+    listar_agendamentos_por_telefone,
 )
 
 
@@ -504,3 +506,37 @@ def cancelar_agendamento(agendamento_id):
     else:
         flash(mensagem, "error")
     return redirect(url_for("main.inicio"))
+# ============================================
+# CONSULTA PÚBLICA: MEUS AGENDAMENTOS (somente telefone)
+# ============================================
+
+
+@main_bp.route("/meus-agendamentos", methods=["GET", "POST"])
+def meus_agendamentos():
+    """
+    Consulta pública dos agendamentos de um cliente usando SOMENTE o telefone
+    (agendamentos normais e de plano).
+    - GET:  exibe o formulário (o telefone NUNCA é lido da URL).
+    - POST: valida o telefone e exibe os agendamentos. Somente leitura.
+    """
+    if request.method == "GET":
+        return render_template("meus_agendamentos.html", consultado=False)
+
+    telefone = request.form.get("telefone", "").strip()
+    if not telefone or not validar_telefone(telefone):
+        flash("Telefone inválido. Informe o DDD e o número (ex: (38) 99999-8888).", "error")
+        return render_template("meus_agendamentos.html", consultado=False)
+
+    resultado = listar_agendamentos_por_telefone(telefone)
+
+    resposta = make_response(render_template(
+        "meus_agendamentos.html",
+        consultado=True,
+        telefone_mascarado=mascarar_telefone(telefone),
+        proximos=resultado["proximos"],
+        anteriores=resultado["anteriores"],
+        total=resultado["total"],
+    ))
+    # Dados pessoais: impede cache do navegador/proxy (botão "voltar", etc.).
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta

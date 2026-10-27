@@ -16,16 +16,18 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+
 from flask import Flask, redirect, url_for, flash, request, has_request_context
 from flask_wtf.csrf import CSRFProtect
 from flask_bcrypt import Bcrypt
 from config import Config, MSG_SEM_ADMIN_SENHA
 from models import db
 from services.financeiro_service import formatar_moeda, aplicar_migracoes
-from utils import formatar_telefone, formatar_data_hora_br
+from utils import formatar_telefone, formatar_data_hora_br, mascarar_telefone
 from models.admin import Admin
 from routes import main_bp, admin_bp
 from services.barbearia_service import criar_banco_e_popular
+
 
 
 def registrar_banco_em_uso(app):

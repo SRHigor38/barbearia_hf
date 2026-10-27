@@ -46,6 +46,23 @@ def formatar_telefone(telefone):
         return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
     return digitos
 
+def mascarar_telefone(telefone):
+    """
+    Mascara o telefone para EXIBIÇÃO pública, escondendo os dígitos do meio.
+
+        38991388394 -> (38) 9****-8394   (celular, 11 dígitos)
+        3899138394  -> (38) ****-8394    (fixo, 10 dígitos)
+
+    Usado na consulta pública "Meus Agendamentos" para não repetir na tela o
+    número completo. Outros tamanhos devolvem string vazia (nada é inventado).
+    """
+    digitos = normalizar_telefone(telefone)
+    if len(digitos) == 11:
+        return f"({digitos[:2]}) {digitos[2]}****-{digitos[7:]}"
+    if len(digitos) == 10:
+        return f"({digitos[:2]}) ****-{digitos[6:]}"
+    return ""
+
 
 # ============================================
 # DATA/HORA: CONVERSÃO PARA EXIBIÇÃO (BRASÍLIA)

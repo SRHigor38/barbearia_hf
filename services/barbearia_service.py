@@ -20,7 +20,7 @@ from models.plano_tipo import PlanoTipo
 from models.plano_tipo_beneficio import PlanoTipoBeneficio
 from models.plano_beneficio import PlanoBeneficio
 from models.agendamento_servico import AgendamentoServico
-from utils import normalizar_nome, normalizar_telefone, nomes_busca_telefone
+from utils import normalizar_nome, normalizar_telefone, nomes_busca_telefone, FUSO_BRASIL
 
 
 # ============================================
@@ -713,6 +713,89 @@ def buscar_cliente_por_telefone(telefone):
         if cliente is not None:
             return cliente
     return None
+
+def listar_agendamentos_por_telefone(telefone):
+    """
+    Consulta PÚBLICA "Meus Agendamentos": lista os agendamentos de um telefone.
+
+    - Cobre agendamentos NORMAIS (plano_id vazio) e de PLANO (plano_id preenchido).
+    - Encontra pelo telefone gravado no próprio agendamento (em qualquer das
+      variações de formatação) OU pelo cliente cadastrado com esse telefone.
+    - SOMENTE LEITURA: não altera agendamento, plano, benefício nem financeiro.
+    - Devolve apenas dados de exibição (sem IDs, sem nome completo, sem telefone).
+
+    Retorna {"proximos": [...], "anteriores": [...], "total": n}. Um telefone
+    inválido, inexistente ou sem agendamentos devolve as listas vazias (o
+    chamador não consegue distinguir os casos — evita enumerar clientes).
+    """
+    from sqlalchemy import or_
+
+    vazio = {"proximos": [], "anteriores": [], "total": 0}
+
+    digitos = normalizar_telefone(telefone)
+    if len(digitos) not in (10, 11):
+        return vazio
+
+    condicoes = [Agendamento.telefone.in_(nomes_busca_telefone(digitos))]
+    cliente = buscar_cliente_por_telefone(digitos)
+    if cliente is not None:
+        condicoes.append(Agendamento.cliente_id == cliente.id)
+
+    agendamentos = Agendamento.query.filter(or_(*condicoes)).all()
+
+    # "Agora" no horário de Brasília (o servidor roda em UTC).
+    agora = datetime.now(FUSO_BRASIL).strftime("%Y-%m-%d %H:%M")
+
+    proximos = []
+    anteriores = []
+    for ag in agendamentos:
+        via_plano = ag.plano_id is not None
+        valor = None
+        pagamento = None
+
+        if not via_plano:
+            # Agendamento normal: valor/pagamento vêm do lançamento financeiro.
+            financeiro = ag.financeiro
+            if financeiro is not None:
+                valor = financeiro.valor
+                pagamento = {
+                    "pago": "Pago",
+                    "pendente": "Pendente",
+                    "cancelado": "Cancelado",
+                }.get(financeiro.status, financeiro.status)
+            else:
+                servico_obj = Servico.query.filter_by(nome=ag.servico).first()
+                valor = servico_obj.preco if servico_obj else None
+
+        try:
+            data_br = datetime.strptime(ag.data, "%Y-%m-%d").strftime("%d/%m/%Y")
+        except ValueError:
+            data_br = ag.data
+
+        inicio = f"{ag.data} {ag.horario}"
+        futuro = inicio >= agora
+        item = {
+            "servico": ag.servico,
+            "data": ag.data,
+            "data_br": data_br,
+            "horario": ag.horario,
+            "profissional": ag.profissional.nome if ag.profissional else "—",
+            "via_plano": via_plano,
+            "plano_nome": ag.plano.nome if (via_plano and ag.plano) else None,
+            "valor": valor,
+            "pagamento": pagamento,
+            "situacao": "Agendado" if futuro else "Realizado",
+        }
+        (proximos if futuro else anteriores).append((inicio, item))
+
+    proximos.sort(key=lambda par: par[0])                  # mais próximo primeiro
+    anteriores.sort(key=lambda par: par[0], reverse=True)  # mais recente primeiro
+
+    return {
+        "proximos": [item for _, item in proximos],
+        "anteriores": [item for _, item in anteriores],
+        "total": len(proximos) + len(anteriores),
+    }
 
 
 def criar_cliente(nome, telefone, email=None, aniversario=None, observacoes=None):
