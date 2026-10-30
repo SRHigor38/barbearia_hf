@@ -5,7 +5,7 @@
 # Campos simplificados: foto, nome e status (ativo/inativo).
 
 from models import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Profissional(db.Model):
@@ -25,7 +25,7 @@ class Profissional(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     foto = db.Column(db.String(255), nullable=True)
     ativo = db.Column(db.Boolean, nullable=False, default=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     def __repr__(self):
         return f"<Profissional {self.id}: {self.nome}>"

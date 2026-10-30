@@ -5,7 +5,7 @@
 # Exemplo: cliente ligou por telefone e reservou o horário.
 
 from models import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Bloqueio(db.Model):
@@ -25,7 +25,7 @@ class Bloqueio(db.Model):
     data = db.Column(db.String(10), nullable=False)
     horario = db.Column(db.String(5), nullable=False)
     motivo = db.Column(db.String(200), nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     def __repr__(self):
         return f"<Bloqueio {self.id}: {self.data} às {self.horario}>"

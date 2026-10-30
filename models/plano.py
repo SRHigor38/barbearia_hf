@@ -15,7 +15,7 @@
 #   7 = Domingo
 
 from models import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Plano(db.Model):
@@ -52,7 +52,7 @@ class Plano(db.Model):
     status = db.Column(db.String(20), nullable=False, default="ATIVO")
     dias_permitidos = db.Column(db.String(30), nullable=False, default="1,2,3,4,5,6,7")
     codigo_acesso = db.Column(db.String(20), nullable=False, unique=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relacionamento: um plano pertence a um cliente
     cliente = db.relationship("Cliente", backref="plano")

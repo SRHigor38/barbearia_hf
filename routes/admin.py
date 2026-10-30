@@ -337,7 +337,7 @@ def excluir_agendamento(agendamento_id):
     if check:
         return check
 
-    agendamento = Agendamento.query.get(agendamento_id)
+    agendamento = db.session.get(Agendamento, agendamento_id)
 
     if agendamento is None:
         flash("Agendamento não encontrado.", "error")
@@ -377,7 +377,7 @@ def excluir_cliente_lgpd(cliente_id):
     if check:
         return check
 
-    cliente = Cliente.query.get(cliente_id)
+    cliente = db.session.get(Cliente, cliente_id)
     if cliente is None:
         flash("Cliente não encontrado.", "error")
         return redirect(url_for("admin.listar_agendamentos"))
@@ -481,7 +481,7 @@ def listar_servicos():
 
         if servico_id:
             # EDIÇÃO: atualiza serviço existente
-            servico = Servico.query.get(int(servico_id))
+            servico = db.session.get(Servico, int(servico_id))
             if servico:
                 servico.nome = nome
                 servico.preco = preco
@@ -517,7 +517,7 @@ def editar_servico(servico_id):
     if check:
         return check
 
-    servico = Servico.query.get(servico_id)
+    servico = db.session.get(Servico, servico_id)
     if servico is None:
         flash("Serviço não encontrado.", "error")
         return redirect(url_for("admin.listar_servicos"))
@@ -879,7 +879,7 @@ def excluir_servico(servico_id):
     if check:
         return check
 
-    servico = Servico.query.get(servico_id)
+    servico = db.session.get(Servico, servico_id)
 
     if servico is None:
         flash("Serviço não encontrado.", "error")
@@ -921,7 +921,7 @@ def pagamento_agendamento(agendamento_id):
     if check:
         return check
 
-    agendamento = Agendamento.query.get(agendamento_id)
+    agendamento = db.session.get(Agendamento, agendamento_id)
     if agendamento is None:
         flash("Agendamento não encontrado.", "error")
         return redirect(url_for("admin.listar_agendamentos"))
@@ -1095,7 +1095,7 @@ def editar_gasto(despesa_id):
     if check:
         return check
 
-    despesa = Despesa.query.get(despesa_id)
+    despesa = db.session.get(Despesa, despesa_id)
     if despesa is None:
         flash("Gasto não encontrado.", "error")
         return redirect(url_for("admin.listar_gastos"))
@@ -1180,7 +1180,7 @@ def configuracoes():
         return check
 
     admin_id = session.get("admin_id")
-    admin = Admin.query.get(admin_id)
+    admin = db.session.get(Admin, admin_id)
     if admin is None:
         flash("Administrador não encontrado.", "error")
         return redirect(url_for("admin.logout"))

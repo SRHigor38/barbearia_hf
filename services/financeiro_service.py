@@ -100,7 +100,7 @@ def registrar_despesa(descricao, categoria, valor, data, observacao=None):
 
 def atualizar_despesa(despesa_id, descricao, categoria, valor, data, observacao=None):
     """Atualiza um gasto existente. Retorna (True, None) ou (False, erro)."""
-    despesa = Despesa.query.get(despesa_id)
+    despesa = db.session.get(Despesa, despesa_id)
     if despesa is None:
         return False, "Gasto não encontrado."
 
@@ -129,7 +129,7 @@ def atualizar_despesa(despesa_id, descricao, categoria, valor, data, observacao=
 
 def excluir_despesa(despesa_id):
     """Exclui um gasto pelo ID. Retorna True se excluído."""
-    despesa = Despesa.query.get(despesa_id)
+    despesa = db.session.get(Despesa, despesa_id)
     if despesa is None:
         return False
     db.session.delete(despesa)

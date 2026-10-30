@@ -321,8 +321,19 @@ body {
 .hero-content .subtitle {
     font-size: 18px;
     color: #999999;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     animation: fadeInUp 0.8s ease 0.2s both;
+}
+
+.hero-content .hero-tagline {
+    font-size: 16px;
+    color: #d4af37;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 10px;
+    margin-bottom: 0;
+    animation: fadeInUp 0.8s ease 0.3s both;
 }
 
 .hero-content .hero-buttons {

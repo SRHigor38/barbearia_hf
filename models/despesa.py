@@ -7,7 +7,7 @@
 # O valor é armazenado em REAIS (Float, centavos suportados).
 
 from models import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Despesa(db.Model):
@@ -31,7 +31,7 @@ class Despesa(db.Model):
     valor = db.Column(db.Float, nullable=False, default=0)
     data = db.Column(db.String(10), nullable=False)
     observacao = db.Column(db.Text, nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     def __repr__(self):
         return f"<Despesa {self.id}: {self.descricao} - R${self.valor:.2f}>"

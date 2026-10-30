@@ -290,7 +290,7 @@ def rodar():
             cliente_id=cliente_plano.id,
             plano_id=plano_lgpd.id,
             data=data_agendamento,
-            horario="16:00",
+            horario="10:00",
             profissional_id=profissional_plano.id,
         )
         ids_planos = {

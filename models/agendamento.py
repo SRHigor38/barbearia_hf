@@ -6,7 +6,7 @@
 # Pode ter múltiplos serviços (via AgendamentoServico) quando feito com plano.
 
 from models import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Agendamento(db.Model):
@@ -38,7 +38,7 @@ class Agendamento(db.Model):
     cliente_id = db.Column(db.Integer, db.ForeignKey("cliente.id"), nullable=True)
     plano_id = db.Column(db.Integer, db.ForeignKey("plano.id"), nullable=True)
     observacoes = db.Column(db.Text, nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relacionamentos
     profissional = db.relationship("Profissional", backref="agendamentos")

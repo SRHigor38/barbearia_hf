@@ -5,7 +5,7 @@
 # Possui histórico de agendamentos e dados de contato.
 
 from models import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Cliente(db.Model):
@@ -29,7 +29,7 @@ class Cliente(db.Model):
     email = db.Column(db.String(120), nullable=True)
     aniversario = db.Column(db.String(10), nullable=True)
     observacoes = db.Column(db.Text, nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     def __repr__(self):
         return f"<Cliente {self.id}: {self.nome} - {self.telefone}>"

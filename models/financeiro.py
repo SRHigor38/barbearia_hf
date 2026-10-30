@@ -10,7 +10,7 @@
 # Apenas registros com status == "pago" entram no faturamento.
 
 from models import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Financeiro(db.Model):
@@ -53,7 +53,7 @@ class Financeiro(db.Model):
     status = db.Column(db.String(20), nullable=False, default="pendente")
     forma_pagamento = db.Column(db.String(20), nullable=True, default=None)
     data_pagamento = db.Column(db.String(10), nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # ============================================
     # RELACIONAMENTOS

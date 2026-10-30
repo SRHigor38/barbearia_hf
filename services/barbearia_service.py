@@ -160,7 +160,7 @@ def buscar_servico_por_nome(nome_servico):
 
 def buscar_servico_por_id(servico_id):
     """Busca um serviço pelo ID."""
-    return Servico.query.get(servico_id)
+    return db.session.get(Servico, servico_id)
 
 
 def contar_servicos():
@@ -329,7 +329,7 @@ def criar_agendamento_plano(cliente_id, plano_id, data, horario, profissional_id
     # ============================================
     # VALIDAÇÃO 1: Plano existe e pertence ao cliente
     # ============================================
-    plano = Plano.query.get(plano_id)
+    plano = db.session.get(Plano, plano_id)
     if plano is None:
         return None, "Plano não encontrado."
 
@@ -367,7 +367,7 @@ def criar_agendamento_plano(cliente_id, plano_id, data, horario, profissional_id
         return None, msg
 
     # VALIDAÇÃO 8: Profissional válido e ativo
-    profissional = Profissional.query.get(profissional_id)
+    profissional = db.session.get(Profissional, profissional_id)
     if profissional is None or not profissional.ativo:
         return None, "Profissional inválido ou inativo."
 
@@ -400,7 +400,7 @@ def criar_agendamento_plano(cliente_id, plano_id, data, horario, profissional_id
         nome_pacote = " + ".join(s.nome for s in servicos_pacote)
 
         # Busca o cliente para nome/telefone
-        cliente = Cliente.query.get(cliente_id)
+        cliente = db.session.get(Cliente, cliente_id)
         nome_cliente = cliente.nome if cliente else ""
         telefone_cliente = cliente.telefone if cliente else ""
 
@@ -451,13 +451,13 @@ def cancelar_agendamento_com_beneficios(agendamento_id):
     - Benefícios ilimitados não são devolvidos (não precisam).
     - Remove o registro financeiro se existir.
     """
-    agendamento = Agendamento.query.get(agendamento_id)
+    agendamento = db.session.get(Agendamento, agendamento_id)
     if agendamento is None:
         return False, "Agendamento não encontrado."
 
     # Se tem plano, devolve os benefícios
     if agendamento.plano_id:
-        plano = Plano.query.get(agendamento.plano_id)
+        plano = db.session.get(Plano, agendamento.plano_id)
         if plano:
             # Busca os serviços deste agendamento
             if agendamento.servicos_relacionados:
@@ -529,7 +529,7 @@ def listar_todos_profissionais():
 
 def buscar_profissional_por_id(profissional_id):
     """Busca um profissional pelo ID."""
-    return Profissional.query.get(profissional_id)
+    return db.session.get(Profissional, profissional_id)
 
 
 def buscar_profissional_por_nome(nome):
@@ -700,7 +700,7 @@ def listar_clientes():
 
 def buscar_cliente_por_id(cliente_id):
     """Busca um cliente pelo ID."""
-    return Cliente.query.get(cliente_id)
+    return db.session.get(Cliente, cliente_id)
 
 
 def buscar_cliente_por_telefone(telefone):
@@ -845,7 +845,7 @@ def criar_bloqueio(data, horario, motivo=None):
 
 def remover_bloqueio(bloqueio_id):
     """Remove um bloqueio pelo ID."""
-    bloqueio = Bloqueio.query.get(bloqueio_id)
+    bloqueio = db.session.get(Bloqueio, bloqueio_id)
     if bloqueio:
         db.session.delete(bloqueio)
         db.session.commit()
@@ -918,7 +918,7 @@ def listar_planos_tipos():
 
 def buscar_plano_tipo_por_id(plano_tipo_id):
     """Busca um plano tipo pelo ID."""
-    return PlanoTipo.query.get(plano_tipo_id)
+    return db.session.get(PlanoTipo, plano_tipo_id)
 
 
 def buscar_plano_tipo_por_nome(nome):
@@ -1053,7 +1053,7 @@ def buscar_plano_por_cliente(cliente_id):
 
 def buscar_plano_por_id(plano_id):
     """Busca um plano pelo ID."""
-    return Plano.query.get(plano_id)
+    return db.session.get(Plano, plano_id)
 
 
 def buscar_plano_por_codigo(codigo):
@@ -1261,7 +1261,7 @@ def calcular_duracao_pacote(servico_ids):
     """
     total = 0
     for sid in servico_ids:
-        servico = Servico.query.get(sid)
+        servico = db.session.get(Servico, sid)
         if servico:
             total += servico.tempo
     return total
